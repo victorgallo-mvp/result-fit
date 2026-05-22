@@ -53,7 +53,7 @@ export default function Alunos() {
             <button
               key={val}
               onClick={() => setStatusFilter(val)}
-              className={`px-3 py-2 text-xs font-semibold transition-colors ${statusFilter === val ? 'bg-accent text-bg' : 'text-muted hover:text-primary'}`}
+              className={`px-3 py-2 text-xs font-semibold transition-colors ${statusFilter === val ? 'bg-accent text-white' : 'text-muted hover:text-primary'}`}
             >
               {label}
             </button>
@@ -64,7 +64,7 @@ export default function Alunos() {
       {/* List */}
       {isLoading && (
         <div className="space-y-2">
-          {[1,2,3,4].map(i => <div key={i} className="h-20 rounded-2xl bg-surface animate-pulse" />)}
+          {[1,2,3,4].map(i => <div key={i} className="h-20 rounded-2xl bg-white animate-pulse" />)}
         </div>
       )}
 
@@ -83,10 +83,10 @@ export default function Alunos() {
           <button
             key={s.id}
             onClick={() => navigate(`/alunos/${s.id}`)}
-            className="pressable flex items-center gap-4 w-full p-4 bg-surface border border-border rounded-2xl text-left"
+            className="pressable flex items-center gap-4 w-full p-4 bg-white border border-border rounded-2xl text-left"
           >
             <div
-              className="w-12 h-12 rounded-full flex items-center justify-center text-bg font-extrabold text-lg flex-shrink-0"
+              className="w-12 h-12 rounded-full flex items-center justify-center text-white font-extrabold text-lg flex-shrink-0"
               style={{ backgroundColor: avatarColor(s.name) }}
             >
               {s.name[0]}
@@ -193,7 +193,7 @@ function CreateStudentDialog({ open, onClose }) {
                   type="button"
                   key={d}
                   onClick={() => toggleDay(d)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${form.training_days.includes(d) ? 'bg-accent text-bg border-accent' : 'bg-raised border-border text-muted hover:text-primary'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${form.training_days.includes(d) ? 'bg-accent text-white border-accent' : 'bg-raised border-border text-muted hover:text-primary'}`}
                 >
                   {DAY_LABELS[d]}
                 </button>

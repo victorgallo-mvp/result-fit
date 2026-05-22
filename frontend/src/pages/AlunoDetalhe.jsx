@@ -50,12 +50,12 @@ export default function AlunoDetalhe() {
   return (
     <div className="flex flex-col min-h-full">
       {/* Header */}
-      <div className="px-4 pt-12 pb-5 bg-surface border-b border-border">
+      <div className="px-4 pt-12 pb-5 bg-white border-b border-border">
         <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-muted text-sm mb-4 -ml-1">
           <ArrowLeft size={16} /> Alunos
         </button>
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-bg font-extrabold text-2xl flex-shrink-0" style={{ backgroundColor: color }}>
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-extrabold text-2xl flex-shrink-0" style={{ backgroundColor: color }}>
             {student.name[0]}
           </div>
           <div className="flex-1 min-w-0">
@@ -141,7 +141,7 @@ function InfoTab({ student }) {
       <InfoRow icon={Mail}  label="Email"    value={student.email ?? '—'} />
       <InfoRow icon={Calendar} label="Nascimento" value={student.birthday ? `${fmtDate(student.birthday)} (${getAge(student.birthday)} anos)` : '—'} />
 
-      <div className="bg-surface border border-border rounded-2xl p-4">
+      <div className="bg-white border border-border rounded-2xl p-4">
         <p className="text-xs text-muted font-semibold uppercase tracking-wider mb-2">Dias de treino</p>
         <div className="flex gap-1.5 flex-wrap">
           {(student.training_days ?? []).map(d => (
@@ -152,7 +152,7 @@ function InfoTab({ student }) {
         </div>
       </div>
 
-      <div className="bg-surface border border-border rounded-2xl p-4">
+      <div className="bg-white border border-border rounded-2xl p-4">
         <p className="text-xs text-muted font-semibold uppercase tracking-wider mb-1">Vencimento</p>
         <p className="text-primary font-semibold">Todo dia {student.due_day}</p>
       </div>
@@ -183,7 +183,7 @@ function InfoTab({ student }) {
               <div className="flex gap-1.5 flex-wrap">
                 {DAYS.map(d => (
                   <button type="button" key={d} onClick={() => toggleDay(d)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${form.training_days.includes(d) ? 'bg-accent text-bg border-accent' : 'bg-raised border-border text-muted'}`}>
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${form.training_days.includes(d) ? 'bg-accent text-white border-accent' : 'bg-raised border-border text-muted'}`}>
                     {DAY_LABELS[d]}
                   </button>
                 ))}
@@ -211,7 +211,7 @@ function InfoTab({ student }) {
 
 function InfoRow({ icon: Icon, label, value }) {
   return (
-    <div className="bg-surface border border-border rounded-2xl p-4 flex items-center gap-3">
+    <div className="bg-white border border-border rounded-2xl p-4 flex items-center gap-3">
       <div className="w-9 h-9 rounded-xl bg-raised flex items-center justify-center flex-shrink-0">
         <Icon size={16} className="text-muted" />
       </div>
@@ -266,7 +266,7 @@ function FrequenciaTab({ student }) {
     <div className="pb-6 space-y-4">
       {/* Stats */}
       {stats && (
-        <div className="bg-surface border border-border rounded-2xl p-4">
+        <div className="bg-white border border-border rounded-2xl p-4">
           <div className="flex items-end justify-between mb-3">
             <div>
               <p className="text-xs text-muted uppercase tracking-wider font-semibold mb-1">Taxa de frequência</p>
@@ -287,7 +287,7 @@ function FrequenciaTab({ student }) {
       )}
 
       {/* Calendar */}
-      <div className="bg-surface border border-border rounded-2xl p-4">
+      <div className="bg-white border border-border rounded-2xl p-4">
         {/* Month nav */}
         <div className="flex items-center justify-between mb-4">
           <button onClick={prevMonth} className="p-2 rounded-xl hover:bg-raised text-muted">
@@ -324,7 +324,7 @@ function FrequenciaTab({ student }) {
                 key={day}
                 className={`
                   aspect-square flex items-center justify-center rounded-lg text-xs font-semibold mx-0.5
-                  ${attended ? 'bg-accent text-bg' : ''}
+                  ${attended ? 'bg-accent text-white' : ''}
                   ${missed   ? 'bg-danger/15 text-danger' : ''}
                   ${!isTraining && !attended ? 'text-muted/40' : ''}
                   ${isFuture && isTraining ? 'text-muted border border-border' : ''}
@@ -399,7 +399,7 @@ function PagamentosTab({ student }) {
       </Button>
 
       {/* Payment list */}
-      <div className="bg-surface border border-border rounded-2xl overflow-hidden">
+      <div className="bg-white border border-border rounded-2xl overflow-hidden">
         {payments.length === 0 && (
           <p className="p-4 text-center text-sm text-muted">Nenhum pagamento registrado</p>
         )}
@@ -483,7 +483,7 @@ function PagamentosTab({ student }) {
 
 function MiniCard({ label, value, color = 'text-primary' }) {
   return (
-    <div className="bg-surface border border-border rounded-xl p-3 text-center">
+    <div className="bg-white border border-border rounded-xl p-3 text-center">
       <p className="text-xs text-muted mb-1">{label}</p>
       <p className={`text-sm font-bold ${color}`}>{value}</p>
     </div>

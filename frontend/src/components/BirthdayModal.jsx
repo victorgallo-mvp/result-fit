@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { studentsApi } from '@/api/students'
-import { avatarColor, fmtDate, getAge, todayStr } from '@/lib/utils'
-import { X, ChevronRight } from 'lucide-react'
+import { avatarColor, getAge, todayStr } from '@/lib/utils'
+import { X, ChevronRight, Cake } from 'lucide-react'
 
 const STORAGE_KEY = `birthday_alert_shown_${todayStr()}`
 
@@ -35,20 +35,18 @@ export function BirthdayModal() {
   const StudentRow = ({ student, onClick }) => (
     <button
       onClick={onClick}
-      className="flex items-center gap-3 w-full p-3 rounded-2xl hover:bg-raised/50 transition-colors text-left"
+      className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-raised transition-colors text-left"
     >
       <div
-        className="w-11 h-11 rounded-full flex items-center justify-center text-bg font-bold text-lg flex-shrink-0"
+        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
         style={{ backgroundColor: avatarColor(student.name) }}
       >
         {student.name[0]}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-primary">{student.name}</p>
+        <p className="font-semibold text-primary text-sm">{student.name}</p>
         {student.birthday && (
-          <p className="text-xs text-muted">
-            {getAge(student.birthday)} anos hoje
-          </p>
+          <p className="text-xs text-muted">{getAge(student.birthday)} anos</p>
         )}
       </div>
       <ChevronRight size={16} className="text-muted flex-shrink-0" />
@@ -57,15 +55,20 @@ export function BirthdayModal() {
 
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm animate-fade-in" onClick={close} />
-      <div className="fixed inset-x-0 bottom-0 z-50 max-w-lg mx-auto bg-surface border border-border rounded-t-3xl p-6 pb-8 safe-bottom animate-slide-up">
+      <div className="fixed inset-0 z-50 bg-black/40 animate-fade-in" onClick={close} />
+      <div className="fixed inset-x-0 bottom-0 z-50 max-w-lg mx-auto bg-white border border-border rounded-t-3xl p-6 pb-8 safe-bottom animate-slide-up shadow-xl">
         <div className="flex items-center justify-between mb-5">
-          <div>
-            <h2 className="text-xl font-bold text-primary">🎂 Aniversários</h2>
-            <p className="text-sm text-muted">Seus alunos de hoje e amanhã</p>
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center">
+              <Cake size={18} className="text-accent" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-primary">Aniversários</h2>
+              <p className="text-xs text-muted">Seus alunos de hoje e amanhã</p>
+            </div>
           </div>
           <button onClick={close} className="p-2 rounded-xl hover:bg-raised text-muted">
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
@@ -87,7 +90,7 @@ export function BirthdayModal() {
         {data.tomorrow?.length > 0 && (
           <div className="mb-4">
             <p className="text-xs font-bold text-muted uppercase tracking-wider mb-2 px-1">Amanhã</p>
-            <div className="space-y-1 opacity-70">
+            <div className="space-y-1 opacity-60">
               {data.tomorrow.map(s => (
                 <StudentRow
                   key={s.id}
@@ -101,7 +104,7 @@ export function BirthdayModal() {
 
         <button
           onClick={close}
-          className="w-full h-12 rounded-xl bg-raised text-primary font-semibold hover:bg-border transition-colors"
+          className="w-full h-11 rounded-xl bg-raised border border-border text-primary font-semibold text-sm hover:bg-border transition-colors"
         >
           Fechar
         </button>

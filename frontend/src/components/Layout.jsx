@@ -1,21 +1,21 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Home, Users, CreditCard, BarChart2, MoreHorizontal, Dumbbell, X, DollarSign, Settings, BookOpen, LogOut } from 'lucide-react'
+import { Home, Users, CreditCard, BarChart2, MoreHorizontal, X, DollarSign, Settings, BookOpen, LogOut, Dumbbell } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { BirthdayModal } from './BirthdayModal'
 import { cn } from '@/lib/utils'
 
 const mainNav = [
-  { to: '/',          icon: Home,       label: 'Hoje'       },
-  { to: '/alunos',    icon: Users,      label: 'Alunos'     },
-  { to: '/pagamentos',icon: CreditCard, label: 'Pagamentos' },
-  { to: '/dashboard', icon: BarChart2,  label: 'Dashboard'  },
+  { to: '/',           icon: Home,       label: 'Hoje'       },
+  { to: '/alunos',     icon: Users,      label: 'Alunos'     },
+  { to: '/pagamentos', icon: CreditCard, label: 'Pagamentos' },
+  { to: '/dashboard',  icon: BarChart2,  label: 'Dashboard'  },
 ]
 
 const moreNav = [
-  { to: '/planos',    icon: BookOpen,   label: 'Planos'      },
-  { to: '/financeiro',icon: DollarSign, label: 'Financeiro'  },
-  { to: '/config',    icon: Settings,   label: 'Configurações'},
+  { to: '/planos',     icon: BookOpen,   label: 'Planos'       },
+  { to: '/financeiro', icon: DollarSign, label: 'Financeiro'   },
+  { to: '/config',     icon: Settings,   label: 'Configurações' },
 ]
 
 export function Layout() {
@@ -30,16 +30,14 @@ export function Layout() {
 
   return (
     <div className="flex flex-col h-full max-w-lg mx-auto relative">
-      {/* Birthday modal */}
       <BirthdayModal />
 
-      {/* Page content */}
       <main className="flex-1 overflow-y-auto pb-20">
         <Outlet />
       </main>
 
       {/* Bottom navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-surface border-t border-border safe-bottom z-40">
+      <nav className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-white border-t border-border safe-bottom z-40">
         <div className="flex items-center justify-around h-16 px-2">
           {mainNav.map(({ to, icon: Icon, label }) => (
             <NavLink
@@ -60,7 +58,6 @@ export function Layout() {
             </NavLink>
           ))}
 
-          {/* More button */}
           <button
             onClick={() => setMoreOpen(true)}
             className={cn(
@@ -77,12 +74,9 @@ export function Layout() {
       {/* More drawer */}
       {moreOpen && (
         <>
-          <div
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm animate-fade-in"
-            onClick={() => setMoreOpen(false)}
-          />
-          <div className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto z-50 bg-surface border border-border rounded-t-3xl p-5 safe-bottom animate-slide-up">
-            <div className="flex items-center justify-between mb-4">
+          <div className="fixed inset-0 z-50 bg-black/30 animate-fade-in" onClick={() => setMoreOpen(false)} />
+          <div className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto z-50 bg-white border border-border rounded-t-3xl p-5 safe-bottom animate-slide-up shadow-xl">
+            <div className="flex items-center justify-between mb-5">
               <div>
                 <p className="font-bold text-primary">{user?.name}</p>
                 <p className="text-xs text-muted">{user?.email}</p>
@@ -99,8 +93,10 @@ export function Layout() {
                   to={to}
                   onClick={() => setMoreOpen(false)}
                   className={({ isActive }) => cn(
-                    'flex flex-col items-center gap-2 p-4 rounded-2xl border border-border transition-colors',
-                    isActive ? 'bg-accent/10 border-accent/30 text-accent' : 'bg-raised text-muted hover:text-primary'
+                    'flex flex-col items-center gap-2 p-4 rounded-2xl border transition-colors',
+                    isActive
+                      ? 'bg-accent/10 border-accent/30 text-accent'
+                      : 'bg-raised border-border text-muted hover:text-primary'
                   )}
                 >
                   <Icon size={22} />

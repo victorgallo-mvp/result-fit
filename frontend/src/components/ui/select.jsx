@@ -30,7 +30,7 @@ export function SelectContent({ className, children, ...props }) {
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
         className={cn(
-          'z-[100] min-w-[180px] rounded-xl bg-surface border border-border shadow-xl overflow-hidden',
+          'z-[100] min-w-[180px] rounded-xl bg-white border border-border shadow-xl overflow-hidden',
           className
         )}
         position="popper"

@@ -3,17 +3,17 @@
 @tailwind utilities;
 
 :root {
-  --bg:          #0C0F14;
-  --surface:     #141820;
-  --raised:      #1C2235;
-  --border:      #232B3E;
-  --accent:      #0FD9A0;
-  --accent-dim:  #0BA87A;
-  --text-primary:#E8EEFF;
-  --text-muted:  #5E6E8A;
-  --danger:      #F43F5E;
-  --warning:     #FBBF24;
-  --success:     #0FD9A0;
+  --bg:          #F1F5F9;
+  --surface:     #FFFFFF;
+  --raised:      #F8FAFC;
+  --border:      #E2E8F0;
+  --accent:      #0F766E;
+  --accent-dim:  #0D6460;
+  --text-primary:#0F172A;
+  --text-muted:  #64748B;
+  --danger:      #DC2626;
+  --warning:     #D97706;
+  --success:     #059669;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -28,21 +28,18 @@ html, body, #root {
 
 body { overscroll-behavior-y: none; }
 
-/* Scrollbar */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-/* Safe area padding for iPhone notch */
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
 .safe-top    { padding-top:    env(safe-area-inset-top,    0px); }
 
-/* Active press state */
 .pressable { transition: transform 0.1s ease, opacity 0.1s ease; }
 .pressable:active { transform: scale(0.97); opacity: 0.85; }
 
 @keyframes slide-up {
-  from { transform: translateY(20px); opacity: 0; }
+  from { transform: translateY(16px); opacity: 0; }
   to   { transform: translateY(0);    opacity: 1; }
 }
 @keyframes fade-in {
@@ -55,16 +52,14 @@ body { overscroll-behavior-y: none; }
   100% { transform: scale(1); }
 }
 
-.animate-slide-up { animation: slide-up 0.3s ease forwards; }
+.animate-slide-up { animation: slide-up 0.25s ease forwards; }
 .animate-fade-in  { animation: fade-in  0.2s ease forwards; }
 .animate-check    { animation: check-pop 0.25s cubic-bezier(.34,1.56,.64,1) forwards; }
 
-/* Stagger helpers */
-.stagger > * { opacity: 0; animation: slide-up 0.3s ease forwards; }
-.stagger > *:nth-child(1)  { animation-delay: 0.05s; }
-.stagger > *:nth-child(2)  { animation-delay: 0.10s; }
-.stagger > *:nth-child(3)  { animation-delay: 0.15s; }
-.stagger > *:nth-child(4)  { animation-delay: 0.20s; }
-.stagger > *:nth-child(5)  { animation-delay: 0.25s; }
-.stagger > *:nth-child(6)  { animation-delay: 0.30s; }
-.stagger > *:nth-child(n+7){ animation-delay: 0.35s; }
+.stagger > * { opacity: 0; animation: slide-up 0.25s ease forwards; }
+.stagger > *:nth-child(1)  { animation-delay: 0.04s; }
+.stagger > *:nth-child(2)  { animation-delay: 0.08s; }
+.stagger > *:nth-child(3)  { animation-delay: 0.12s; }
+.stagger > *:nth-child(4)  { animation-delay: 0.16s; }
+.stagger > *:nth-child(5)  { animation-delay: 0.20s; }
+.stagger > *:nth-child(n+6){ animation-delay: 0.24s; }

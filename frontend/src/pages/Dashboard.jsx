@@ -35,44 +35,21 @@ export default function Dashboard() {
       <h1 className="text-2xl font-extrabold text-primary mt-0.5 mb-5">Dashboard</h1>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-3 mb-6 stagger">
-        <KpiCard
-          icon={Users}
-          label="Alunos ativos"
-          value={summary?.total_alunos_ativos ?? '—'}
-          loading={loadSummary}
-          accent
-        />
-        <KpiCard
-          icon={TrendingUp}
-          label="Faturamento mês"
-          value={summary ? fmtMoney(summary.faturamento_mes) : '—'}
-          loading={loadSummary}
-        />
-        <KpiCard
-          icon={Clock}
-          label="Vencendo em 7 dias"
-          value={summary?.mensalidades_vencendo ?? '—'}
-          loading={loadSummary}
-          warn={summary?.mensalidades_vencendo > 0}
-        />
-        <KpiCard
-          icon={AlertCircle}
-          label="Mensalidades vencidas"
-          value={summary?.mensalidades_vencidas ?? '—'}
-          loading={loadSummary}
-          danger={summary?.mensalidades_vencidas > 0}
-        />
+      <div className="grid grid-cols-2 gap-3 mb-5 stagger">
+        <KpiCard icon={Users}       label="Alunos ativos"        value={summary?.total_alunos_ativos ?? '—'}          loading={loadSummary} accent />
+        <KpiCard icon={TrendingUp}  label="Faturamento mês"      value={summary ? fmtMoney(summary.faturamento_mes) : '—'} loading={loadSummary} />
+        <KpiCard icon={Clock}       label="Vencendo em 7 dias"   value={summary?.mensalidades_vencendo ?? '—'}         loading={loadSummary} warn={summary?.mensalidades_vencendo > 0} />
+        <KpiCard icon={AlertCircle} label="Mensalidades vencidas" value={summary?.mensalidades_vencidas ?? '—'}        loading={loadSummary} danger={summary?.mensalidades_vencidas > 0} />
       </div>
 
       {/* Frequência */}
       {summary && (
-        <div className="bg-surface border border-border rounded-2xl p-4 mb-6">
+        <div className="bg-white border border-border rounded-2xl p-4 shadow-sm mb-5">
           <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">Frequência média — mês atual</p>
           <div className="flex items-end justify-between mb-2">
             <span className="text-3xl font-extrabold text-primary">{summary.taxa_frequencia_media}%</span>
           </div>
-          <div className="h-2 bg-border rounded-full overflow-hidden">
+          <div className="h-1.5 bg-border rounded-full overflow-hidden">
             <div
               className="h-full bg-accent rounded-full transition-all duration-700"
               style={{ width: `${summary.taxa_frequencia_media}%` }}
@@ -83,49 +60,34 @@ export default function Dashboard() {
 
       {/* Vencendo em 7 dias */}
       {payments?.vencendo_7_dias?.length > 0 && (
-        <Section title="⏰ Vencendo nos próximos 7 dias" className="mb-4">
+        <Section title="Vencendo nos próximos 7 dias" className="mb-3" titleColor="text-warning">
           {payments.vencendo_7_dias.map(p => (
-            <PaymentRow
-              key={p.id}
-              payment={p}
-              onClick={() => navigate(`/alunos/${p.student_id}`)}
-              color="text-warning"
-            />
+            <PaymentRow key={p.id} payment={p} onClick={() => navigate(`/alunos/${p.student_id}`)} color="text-warning" />
           ))}
         </Section>
       )}
 
       {/* Vencidas */}
       {payments?.vencidas?.length > 0 && (
-        <Section title="🚨 Mensalidades vencidas" className="mb-4">
+        <Section title="Mensalidades vencidas" className="mb-3" titleColor="text-danger">
           {payments.vencidas.map(p => (
-            <PaymentRow
-              key={p.id}
-              payment={p}
-              onClick={() => navigate(`/alunos/${p.student_id}`)}
-              color="text-danger"
-            />
+            <PaymentRow key={p.id} payment={p} onClick={() => navigate(`/alunos/${p.student_id}`)} color="text-danger" />
           ))}
         </Section>
       )}
 
       {/* Pagas no mês */}
       {payments?.pagas_mes?.length > 0 && (
-        <Section title={`✅ Pagas em ${format(new Date(), 'MMMM', { locale: ptBR })}`} className="mb-4">
+        <Section title={`Pagas em ${format(new Date(), 'MMMM', { locale: ptBR })}`} className="mb-3" titleColor="text-success">
           {payments.pagas_mes.map(p => (
-            <PaymentRow
-              key={p.id}
-              payment={p}
-              onClick={() => navigate(`/alunos/${p.student_id}`)}
-              color="text-success"
-            />
+            <PaymentRow key={p.id} payment={p} onClick={() => navigate(`/alunos/${p.student_id}`)} color="text-success" />
           ))}
         </Section>
       )}
 
       {/* Aniversariantes do mês */}
       {birthdays?.length > 0 && (
-        <Section title="🎂 Aniversariantes do mês">
+        <Section title="Aniversariantes do mês" className="mb-3">
           {birthdays.map(s => (
             <button
               key={s.id}
@@ -133,16 +95,14 @@ export default function Dashboard() {
               className="flex items-center gap-3 w-full py-2.5 border-b border-border last:border-0"
             >
               <div
-                className="w-9 h-9 rounded-full flex items-center justify-center text-bg font-bold text-sm flex-shrink-0"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
                 style={{ backgroundColor: avatarColor(s.name) }}
               >
                 {s.name[0]}
               </div>
               <div className="flex-1 text-left">
                 <p className="text-sm font-semibold text-primary">{s.name}</p>
-                <p className="text-xs text-muted">
-                  Dia {s.birthday?.slice(8, 10)} · {s.age_completing} anos
-                </p>
+                <p className="text-xs text-muted">Dia {s.birthday?.slice(8, 10)} · {s.age_completing} anos</p>
               </div>
               <ChevronRight size={14} className="text-muted" />
             </button>
@@ -155,9 +115,10 @@ export default function Dashboard() {
 
 function KpiCard({ icon: Icon, label, value, loading, accent, warn, danger }) {
   const textColor = danger ? 'text-danger' : warn ? 'text-warning' : accent ? 'text-accent' : 'text-primary'
+  const bgColor   = danger ? 'bg-danger/10' : warn ? 'bg-warning/10' : accent ? 'bg-accent/10' : 'bg-raised'
   return (
-    <div className="bg-surface border border-border rounded-2xl p-4">
-      <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-3 ${accent ? 'bg-accent/10' : warn ? 'bg-warning/10' : danger ? 'bg-danger/10' : 'bg-raised'}`}>
+    <div className="bg-white border border-border rounded-2xl p-4 shadow-sm">
+      <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-3 ${bgColor}`}>
         <Icon size={16} className={textColor} />
       </div>
       <p className="text-xs text-muted font-medium mb-1">{label}</p>
@@ -169,10 +130,10 @@ function KpiCard({ icon: Icon, label, value, loading, accent, warn, danger }) {
   )
 }
 
-function Section({ title, children, className }) {
+function Section({ title, children, className, titleColor = 'text-muted' }) {
   return (
-    <div className={`bg-surface border border-border rounded-2xl p-4 ${className ?? ''}`}>
-      <p className="text-xs font-bold text-muted uppercase tracking-wider mb-3">{title}</p>
+    <div className={`bg-white border border-border rounded-2xl p-4 shadow-sm ${className ?? ''}`}>
+      <p className={`text-xs font-bold uppercase tracking-wider mb-3 ${titleColor}`}>{title}</p>
       {children}
     </div>
   )

@@ -55,7 +55,7 @@ export default function Configuracoes() {
       {/* Avatar */}
       <div className="flex flex-col items-center mb-8">
         <div
-          className="w-20 h-20 rounded-3xl flex items-center justify-center text-bg font-extrabold text-3xl mb-3"
+          className="w-20 h-20 rounded-3xl flex items-center justify-center text-white font-extrabold text-3xl mb-3"
           style={{ backgroundColor: color }}
         >
           {user?.name?.[0]}
@@ -137,7 +137,7 @@ export default function Configuracoes() {
 
 function Section({ title, icon: Icon, children, className }) {
   return (
-    <div className={`bg-surface border border-border rounded-2xl p-5 ${className ?? ''}`}>
+    <div className={`bg-white border border-border rounded-2xl p-5 ${className ?? ''}`}>
       <div className="flex items-center gap-2 mb-4">
         <div className="w-8 h-8 rounded-lg bg-raised flex items-center justify-center">
           <Icon size={15} className="text-muted" />

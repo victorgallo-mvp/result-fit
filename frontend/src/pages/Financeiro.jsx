@@ -92,7 +92,7 @@ export default function Financeiro() {
 
       {/* Transaction list */}
       {isLoading && (
-        <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-16 rounded-2xl bg-surface animate-pulse" />)}</div>
+        <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-16 rounded-2xl bg-white animate-pulse" />)}</div>
       )}
 
       {!isLoading && txs.length === 0 && (
@@ -104,7 +104,7 @@ export default function Financeiro() {
 
       <div className="space-y-2 stagger">
         {txs.map(tx => (
-          <div key={tx.id} className="flex items-center gap-3 p-4 bg-surface border border-border rounded-2xl">
+          <div key={tx.id} className="flex items-center gap-3 p-4 bg-white border border-border rounded-2xl">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${tx.type === 'income' ? 'bg-success/10' : 'bg-danger/10'}`}>
               {tx.type === 'income'
                 ? <TrendingUp  size={16} className="text-success" />
@@ -142,7 +142,7 @@ export default function Financeiro() {
 
 function SummaryCard({ label, value, icon: Icon, color, bg }) {
   return (
-    <div className="bg-surface border border-border rounded-2xl p-3">
+    <div className="bg-white border border-border rounded-2xl p-3">
       <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${bg}`}>
         <Icon size={15} className={color} />
       </div>

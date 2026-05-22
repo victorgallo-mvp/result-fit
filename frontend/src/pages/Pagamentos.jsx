@@ -68,7 +68,7 @@ export default function Pagamentos() {
           <button
             key={val}
             onClick={() => setStatusFilter(val)}
-            className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold border transition-all ${statusFilter === val ? 'bg-accent text-bg border-accent' : 'border-border text-muted hover:text-primary'}`}
+            className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold border transition-all ${statusFilter === val ? 'bg-accent text-white border-accent' : 'border-border text-muted hover:text-primary'}`}
           >
             {label}
           </button>
@@ -77,7 +77,7 @@ export default function Pagamentos() {
 
       {/* List */}
       {isLoading && (
-        <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-20 rounded-2xl bg-surface animate-pulse" />)}</div>
+        <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-20 rounded-2xl bg-white animate-pulse" />)}</div>
       )}
 
       {!isLoading && payments.length === 0 && (
@@ -94,7 +94,7 @@ export default function Pagamentos() {
             <div
               key={p.id}
               onClick={() => navigate(`/alunos/${p.student_id}`)}
-              className="pressable flex items-center gap-4 p-4 bg-surface border border-border rounded-2xl cursor-pointer"
+              className="pressable flex items-center gap-4 p-4 bg-white border border-border rounded-2xl cursor-pointer"
             >
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-primary truncate">{p.student_name}</p>

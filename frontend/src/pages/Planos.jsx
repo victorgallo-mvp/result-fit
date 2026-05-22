@@ -39,7 +39,7 @@ export default function Planos() {
       </div>
 
       {isLoading && (
-        <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-24 rounded-2xl bg-surface animate-pulse" />)}</div>
+        <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-24 rounded-2xl bg-white animate-pulse" />)}</div>
       )}
 
       {!isLoading && plans.length === 0 && (
@@ -52,7 +52,7 @@ export default function Planos() {
 
       <div className="space-y-3 stagger">
         {plans.map(plan => (
-          <div key={plan.id} className="bg-surface border border-border rounded-2xl p-5">
+          <div key={plan.id} className="bg-white border border-border rounded-2xl p-5">
             <div className="flex items-start justify-between mb-3">
               <div>
                 <p className="font-bold text-primary text-lg">{plan.name}</p>
@@ -154,7 +154,7 @@ function PlanDialog({ open, onClose, plan }) {
                   type="button"
                   key={n}
                   onClick={() => setForm(f=>({...f,frequency_per_week:n}))}
-                  className={`flex-1 h-10 rounded-xl text-sm font-bold border transition-all ${form.frequency_per_week === n ? 'bg-accent text-bg border-accent' : 'border-border text-muted hover:text-primary'}`}
+                  className={`flex-1 h-10 rounded-xl text-sm font-bold border transition-all ${form.frequency_per_week === n ? 'bg-accent text-white border-accent' : 'border-border text-muted hover:text-primary'}`}
                 >
                   {n}x
                 </button>

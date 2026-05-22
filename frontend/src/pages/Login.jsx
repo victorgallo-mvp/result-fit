@@ -29,20 +29,18 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col items-center justify-center p-6">
-      {/* Brand */}
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6">
       <div className="mb-10 flex flex-col items-center animate-slide-up">
-        <div className="w-16 h-16 rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center mb-4">
-          <Dumbbell size={32} className="text-accent" />
+        <div className="w-14 h-14 rounded-2xl bg-accent flex items-center justify-center mb-5 shadow-sm">
+          <Dumbbell size={28} className="text-white" />
         </div>
-        <h1 className="text-3xl font-extrabold text-primary tracking-tight">Personal Pro</h1>
-        <p className="text-muted text-sm mt-1">Sistema de gestão para personal trainers</p>
+        <h1 className="text-2xl font-extrabold text-primary tracking-tight">Personal Pro</h1>
+        <p className="text-muted text-sm mt-1">Gestão para personal trainers</p>
       </div>
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 animate-slide-up" style={{ animationDelay: '0.08s' }}>
         <div>
-          <label className="block text-sm font-medium text-muted mb-1.5">Email</label>
+          <label className="block text-sm font-medium text-primary mb-1.5">Email</label>
           <Input
             type="email"
             placeholder="seu@email.com"
@@ -54,7 +52,7 @@ export default function Login() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-muted mb-1.5">Senha</label>
+          <label className="block text-sm font-medium text-primary mb-1.5">Senha</label>
           <div className="relative">
             <Input
               type={showPass ? 'text' : 'password'}
@@ -69,7 +67,7 @@ export default function Login() {
               onClick={() => setShowPass(!showPass)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-primary"
             >
-              {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+              {showPass ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
           </div>
         </div>
@@ -79,7 +77,7 @@ export default function Login() {
         </Button>
       </form>
 
-      <p className="mt-10 text-xs text-muted">Personal Pro © {new Date().getFullYear()}</p>
+      <p className="mt-10 text-xs text-muted">Personal Pro &copy; {new Date().getFullYear()}</p>
     </div>
   )
 }
