@@ -1,5 +1,6 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.config import settings
+import sys
 
 client: AsyncIOMotorClient = None
 db = None
@@ -7,18 +8,26 @@ db = None
 
 async def connect_db():
     global client, db
-    client = AsyncIOMotorClient(settings.mongodb_url)
-    db = client[settings.database_name]
-    await db.command("ping")
-    print(f"Connected to MongoDB: {settings.database_name}")
-    await ensure_indexes()
+    print(f"Connecting to MongoDB... DB={settings.database_name}", flush=True)
+    try:
+        client = AsyncIOMotorClient(
+            settings.mongodb_url,
+            serverSelectionTimeoutMS=10000,
+        )
+        db = client[settings.database_name]
+        await db.command("ping")
+        print(f"✅ Connected to MongoDB: {settings.database_name}", flush=True)
+        await ensure_indexes()
+    except Exception as e:
+        print(f"❌ MongoDB connection failed: {e}", flush=True)
+        sys.exit(1)
 
 
 async def disconnect_db():
     global client
     if client:
         client.close()
-        print("Disconnected from MongoDB")
+        print("Disconnected from MongoDB", flush=True)
 
 
 async def ensure_indexes():
