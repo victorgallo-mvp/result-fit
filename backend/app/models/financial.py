@@ -1,6 +1,5 @@
-from __future__ import annotations
 from pydantic import BaseModel
-from typing import Literal
+from typing import Literal, Optional
 from datetime import date
 
 
@@ -13,8 +12,8 @@ class FinancialCreate(BaseModel):
 
 
 class FinancialUpdate(BaseModel):
-    type: Literal["income", "expense"] | None = None
-    category: str | None = None
-    amount: float | None = None
-    date: date | None = None
-    description: str | None = None
+    type: Optional[Literal["income", "expense"]] = None
+    category: Optional[str] = None
+    amount: Optional[float] = None
+    date: Optional[date] = None
+    description: Optional[str] = None

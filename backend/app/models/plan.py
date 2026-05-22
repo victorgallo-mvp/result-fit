@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 
 
 class PlanCreate(BaseModel):
@@ -8,7 +9,7 @@ class PlanCreate(BaseModel):
 
 
 class PlanUpdate(BaseModel):
-    name: str | None = None
-    price: float | None = None
-    frequency_per_week: int | None = None
-    active: bool | None = None
+    name: Optional[str] = None
+    price: Optional[float] = None
+    frequency_per_week: Optional[int] = None
+    active: Optional[bool] = None

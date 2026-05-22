@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Literal
+from typing import Literal, Optional
 from datetime import date
 
 
@@ -16,9 +16,9 @@ class PaymentMarkPaid(BaseModel):
 
 
 class PaymentUpdate(BaseModel):
-    amount: float | None = None
-    due_date: date | None = None
-    paid_at: date | None = None
-    payment_method: Literal["pix", "dinheiro", "cartao", "transferencia"] | None = None
-    status: Literal["pending", "paid", "overdue"] | None = None
-    notes: str | None = None
+    amount: Optional[float] = None
+    due_date: Optional[date] = None
+    paid_at: Optional[date] = None
+    payment_method: Optional[Literal["pix", "dinheiro", "cartao", "transferencia"]] = None
+    status: Optional[Literal["pending", "paid", "overdue"]] = None
+    notes: Optional[str] = None

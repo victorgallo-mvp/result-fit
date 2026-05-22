@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Literal
+from typing import Literal, Optional
 from datetime import datetime
 
 
@@ -17,9 +17,9 @@ class UserLogin(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    name: str | None = None
-    shift: Literal["morning", "afternoon", "full"] | None = None
-    password: str | None = None
+    name: Optional[str] = None
+    shift: Optional[Literal["morning", "afternoon", "full"]] = None
+    password: Optional[str] = None
 
 
 class UserOut(BaseModel):
