@@ -7,9 +7,9 @@ import { cn } from '@/lib/utils'
 
 const mainNav = [
   { to: '/',           icon: Home,       label: 'Hoje'       },
+  { to: '/dashboard',  icon: BarChart2,  label: 'Dashboard'  },
   { to: '/alunos',     icon: Users,      label: 'Alunos'     },
   { to: '/pagamentos', icon: CreditCard, label: 'Pagamentos' },
-  { to: '/dashboard',  icon: BarChart2,  label: 'Dashboard'  },
 ]
 
 const moreNav = [
