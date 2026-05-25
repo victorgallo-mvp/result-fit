@@ -40,8 +40,6 @@ export default function Hoje() {
     },
   })
 
-  const marked = students.filter(s => s.marked).length
-  const total  = students.length
   const today  = new Date()
   const dayLabel = format(today, "EEEE, d 'de' MMMM", { locale: ptBR })
 
@@ -88,23 +86,6 @@ export default function Hoje() {
         </div>
       </div>
 
-      {/* Counter */}
-      {students.length > 0 && (
-        <div className="sticky bottom-20 mx-4 mb-3">
-          <div className="flex items-center justify-between bg-white border border-border rounded-2xl shadow-sm px-5 py-3">
-            <span className="text-sm text-muted font-medium">Presentes hoje</span>
-            <div className="flex items-center gap-3">
-              <div className="h-1.5 w-28 bg-border rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-accent rounded-full transition-all duration-500"
-                  style={{ width: total > 0 ? `${(marked / total) * 100}%` : '0%' }}
-                />
-              </div>
-              <span className="text-sm font-bold text-primary">{marked}/{total}</span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
