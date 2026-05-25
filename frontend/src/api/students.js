@@ -11,4 +11,5 @@ export const studentsApi = {
   payments:       (id)           => api.get(`/students/${id}/payments`).then(r => r.data),
   attendances:    (id, month)    => api.get(`/students/${id}/attendances`, { params: { month } }).then(r => r.data),
   attendanceStats:(id, month)    => api.get(`/students/${id}/attendance-stats`, { params: { month } }).then(r => r.data),
+  pagar:          (id)           => api.post(`/students/${id}/pagar`).then(r => r.data),
 }

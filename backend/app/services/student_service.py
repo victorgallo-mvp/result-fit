@@ -1,10 +1,20 @@
 import calendar
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date, timedelta
 from bson import ObjectId
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from app.database import get_db
 from app.models.student import StudentCreate, StudentUpdate
 from app.models.common import serialize_doc
+
+
+def calc_proximo(from_date: date, due_day: int) -> date:
+    """Next occurrence of due_day strictly after from_date."""
+    year, month = from_date.year, from_date.month
+    if from_date.day < due_day:
+        return date(year, month, min(due_day, calendar.monthrange(year, month)[1]))
+    month = month % 12 + 1
+    year = year if month > 1 else year + 1
+    return date(year, month, min(due_day, calendar.monthrange(year, month)[1]))
 
 
 def _student_filter(tenant_id: str, user_id: str) -> dict:
@@ -24,42 +34,36 @@ async def list_students(tenant_id: str, user_id: str, status_filter: str | None,
 
     students = await db.students.find(query).sort("name", 1).to_list(length=500)
 
-    student_ids = [s["_id"] for s in students]
-
     plan_ids = list({s["plan_id"] for s in students if s.get("plan_id")})
     plans = {}
     if plan_ids:
         async for p in db.plans.find({"_id": {"$in": plan_ids}}):
             plans[p["_id"]] = p
 
-    # próximo pagamento pendente/vencido por aluno — 1 query via aggregation
-    payment_map = {}
-    if student_ids:
-        pipeline = [
-            {"$match": {"student_id": {"$in": student_ids}, "status": {"$in": ["pending", "overdue"]}}},
-            {"$sort": {"due_date": 1}},
-            {"$group": {
-                "_id": "$student_id",
-                "payment_id": {"$first": "$_id"},
-                "due_date":   {"$first": "$due_date"},
-                "amount":     {"$first": "$amount"},
-                "status":     {"$first": "$status"},
-            }},
-        ]
-        async for p in db.payments.aggregate(pipeline):
-            due = p["due_date"]
-            payment_map[p["_id"]] = {
-                "id":       str(p["payment_id"]),
-                "due_date": due.strftime("%Y-%m-%d") if hasattr(due, "strftime") else str(due)[:10],
-                "amount":   p["amount"],
-                "status":   p["status"],
-            }
+    today = date.today()
+    today_dt = datetime.combine(today, datetime.min.time())
+    in_3_dt = datetime.combine(today + timedelta(days=3), datetime.min.time())
 
     result = []
     for s in students:
         doc = serialize_doc(s)
         doc["plan"] = serialize_doc(plans.get(s.get("plan_id")))
-        doc["next_payment"] = payment_map.get(s["_id"])
+        pp = s.get("proximo_pagamento")
+        if pp:
+            if pp < today_dt:
+                st = "overdue"
+            elif pp <= in_3_dt:
+                st = "pending"
+            else:
+                st = "upcoming"
+            plan = plans.get(s.get("plan_id"))
+            doc["next_payment"] = {
+                "due_date": pp.strftime("%Y-%m-%d"),
+                "amount": plan.get("price", 0) if plan else 0,
+                "status": st,
+            }
+        else:
+            doc["next_payment"] = None
         result.append(doc)
     return result
 
@@ -117,52 +121,43 @@ async def create_student(data: StudentCreate, tenant_id: str, user_id: str) -> d
         "created_at": datetime.now(timezone.utc),
     }
     result = await db.students.insert_one(doc)
-    student_id = result.inserted_id
-    doc["_id"] = student_id
-
-    if data.last_payment_date:
-        lpd = data.last_payment_date
-        paid_dt = datetime.combine(lpd, datetime.min.time())
-
-        # next occurrence of due_day after last_payment_date
-        dd = data.due_day
-        if lpd.day < dd:
-            next_year, next_month = lpd.year, lpd.month
-        else:
-            next_month = lpd.month + 1
-            next_year = lpd.year + next_month // 13
-            next_month = next_month if next_month <= 12 else 1
-        max_day = calendar.monthrange(next_year, next_month)[1]
-        next_due = date(next_year, next_month, min(dd, max_day))
-        next_status = "overdue" if next_due < date.today() else "pending"
-        next_dt = datetime.combine(next_due, datetime.min.time())
-
-        await db.payments.insert_many([
-            {
-                "tenant_id": ObjectId(tenant_id),
-                "student_id": student_id,
-                "amount": plan["price"],
-                "due_date": paid_dt,
-                "status": "paid",
-                "paid_at": paid_dt,
-                "payment_method": None,
-                "notes": "Pagamento inicial",
-                "created_at": datetime.now(timezone.utc),
-            },
-            {
-                "tenant_id": ObjectId(tenant_id),
-                "student_id": student_id,
-                "amount": plan["price"],
-                "due_date": next_dt,
-                "status": next_status,
-                "paid_at": None,
-                "payment_method": None,
-                "notes": "",
-                "created_at": datetime.now(timezone.utc),
-            },
-        ])
-
+    doc["_id"] = result.inserted_id
     return serialize_doc(doc)
+
+
+async def pagar_student(student_id: str, tenant_id: str, user_id: str) -> dict:
+    db = get_db()
+    student = await db.students.find_one({
+        "_id": ObjectId(student_id),
+        **_student_filter(tenant_id, user_id),
+    })
+    if not student:
+        raise HTTPException(status_code=404, detail="Aluno não encontrado")
+
+    plan = await db.plans.find_one({"_id": student.get("plan_id")})
+    price = plan.get("price", 0) if plan else 0
+
+    today = date.today()
+    proximo = calc_proximo(today, student.get("due_day", 10))
+    today_dt = datetime.combine(today, datetime.min.time())
+    proximo_dt = datetime.combine(proximo, datetime.min.time())
+
+    await db.students.update_one(
+        {"_id": ObjectId(student_id)},
+        {"$set": {"ultimo_pagamento": today_dt, "proximo_pagamento": proximo_dt}},
+    )
+    await db.payments.insert_one({
+        "tenant_id": ObjectId(tenant_id),
+        "student_id": ObjectId(student_id),
+        "amount": price,
+        "due_date": today_dt,
+        "status": "paid",
+        "paid_at": today_dt,
+        "payment_method": None,
+        "notes": "",
+        "created_at": datetime.now(timezone.utc),
+    })
+    return await get_student(student_id, tenant_id, user_id)
 
 
 async def update_student(student_id: str, data: StudentUpdate, tenant_id: str, user_id: str) -> dict:

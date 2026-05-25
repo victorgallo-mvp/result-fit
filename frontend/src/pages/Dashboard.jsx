@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { dashboardApi } from '@/api/dashboard'
-import { paymentsApi } from '@/api/payments'
+import { studentsApi } from '@/api/students'
 import { fmtMoney, fmtDate, avatarColor } from '@/lib/utils'
 import { Clock, AlertCircle, ChevronRight, CheckCircle, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+
 import { toast } from 'sonner'
 
 export default function Dashboard() {
@@ -18,11 +19,7 @@ export default function Dashboard() {
   })
 
   const confirmMutation = useMutation({
-    mutationFn: (id) =>
-      paymentsApi.markPaid(id, {
-        paid_at: format(new Date(), 'yyyy-MM-dd'),
-        payment_method: 'pix',
-      }),
+    mutationFn: (studentId) => studentsApi.pagar(studentId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       toast.success('Pagamento confirmado!')
@@ -62,7 +59,7 @@ export default function Dashboard() {
             <PaymentRow
               key={p.id}
               payment={p}
-              onClick={() => navigate(`/alunos/${p.student_id}`)}
+              onClick={() => navigate(`/alunos/${p.id}`)}
               color="text-danger"
               onConfirm={() => confirmMutation.mutate(p.id)}
               confirming={confirmMutation.isPending && confirmMutation.variables === p.id}
@@ -78,7 +75,7 @@ export default function Dashboard() {
             <PaymentRow
               key={p.id}
               payment={p}
-              onClick={() => navigate(`/alunos/${p.student_id}`)}
+              onClick={() => navigate(`/alunos/${p.id}`)}
               color="text-warning"
             />
           ))}

@@ -42,6 +42,12 @@ async def get_birthdays_month(
     return await student_service.get_birthdays_month(tid, uid, year, m)
 
 
+@router.post("/{student_id}/pagar")
+async def pagar_student(student_id: str, user=Depends(get_current_user)):
+    tid, uid = _ctx(user)
+    return await student_service.pagar_student(student_id, tid, uid)
+
+
 @router.get("/{student_id}")
 async def get_student(student_id: str, user=Depends(get_current_user)):
     tid, uid = _ctx(user)

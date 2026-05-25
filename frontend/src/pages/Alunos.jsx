@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { studentsApi } from '@/api/students'
-import { paymentsApi } from '@/api/payments'
 import { plansApi } from '@/api/plans'
 import { avatarColor, DAY_LABELS, fmtDate, fmtMoney } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -12,7 +11,6 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Search, Plus, ChevronRight, Users, CheckCircle, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { format } from 'date-fns'
 
 const DAYS = ['mon','tue','wed','thu','fri','sat','sun']
 
@@ -29,11 +27,7 @@ export default function Alunos() {
   })
 
   const confirmMutation = useMutation({
-    mutationFn: (paymentId) =>
-      paymentsApi.markPaid(paymentId, {
-        paid_at: format(new Date(), 'yyyy-MM-dd'),
-        payment_method: 'pix',
-      }),
+    mutationFn: (studentId) => studentsApi.pagar(studentId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['students'] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })
@@ -101,8 +95,8 @@ export default function Alunos() {
             key={s.id}
             student={s}
             onClick={() => navigate(`/alunos/${s.id}`)}
-            onConfirm={s.next_payment ? () => confirmMutation.mutate(s.next_payment.id) : null}
-            confirming={confirmMutation.isPending && confirmMutation.variables === s.next_payment?.id}
+            onConfirm={s.next_payment ? () => confirmMutation.mutate(s.id) : null}
+            confirming={confirmMutation.isPending && confirmMutation.variables === s.id}
           />
         ))}
       </div>
@@ -166,7 +160,6 @@ function CreateStudentDialog({ open, onClose }) {
   const [form, setForm] = useState({
     name: '', phone: '', email: '', birthday: '',
     training_days: [], plan_id: '', due_day: '10', notes: '',
-    last_payment_date: '',
   })
 
   const { data: plans = [] } = useQuery({ queryKey: ['plans'], queryFn: plansApi.list })
@@ -177,7 +170,7 @@ function CreateStudentDialog({ open, onClose }) {
       qc.invalidateQueries({ queryKey: ['students'] })
       toast.success('Aluno cadastrado!')
       onClose()
-      setForm({ name:'',phone:'',email:'',birthday:'',training_days:[],plan_id:'',due_day:'10',notes:'',last_payment_date:'' })
+      setForm({ name:'',phone:'',email:'',birthday:'',training_days:[],plan_id:'',due_day:'10',notes:'' })
     },
     onError: err => toast.error(err.response?.data?.detail || 'Erro ao cadastrar'),
   })
@@ -199,7 +192,6 @@ function CreateStudentDialog({ open, onClose }) {
       due_day: parseInt(form.due_day),
       email: form.email || null,
       birthday: form.birthday || null,
-      last_payment_date: form.last_payment_date || null,
     })
   }
 
@@ -235,11 +227,6 @@ function CreateStudentDialog({ open, onClose }) {
           <div>
             <Label>Dia de vencimento</Label>
             <Input type="number" min={1} max={31} value={form.due_day} onChange={e => setForm(f => ({...f, due_day: e.target.value}))} />
-          </div>
-          <div>
-            <Label>Data do último pagamento</Label>
-            <Input type="date" value={form.last_payment_date} onChange={e => setForm(f => ({...f, last_payment_date: e.target.value}))} />
-            <p className="text-xs text-muted mt-1">Opcional — gera histórico e próximo vencimento automaticamente</p>
           </div>
           <div>
             <Label>Dias de treino *</Label>

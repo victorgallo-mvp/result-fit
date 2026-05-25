@@ -14,7 +14,6 @@ class StudentCreate(BaseModel):
     training_days: list[TRAINING_DAYS] = []
     plan_id: str
     due_day: int
-    last_payment_date: Optional[date] = None
     notes: str = ""
     photo_url: Optional[str] = None
 

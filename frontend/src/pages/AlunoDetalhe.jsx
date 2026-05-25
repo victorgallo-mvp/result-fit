@@ -2,11 +2,10 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { studentsApi } from '@/api/students'
-import { paymentsApi } from '@/api/payments'
 import { plansApi } from '@/api/plans'
 import {
   avatarColor, DAY_LABELS, fmtDate, fmtMoney, getAge,
-  currentMonthStr, STATUS_PAYMENT, METHOD_LABELS,
+  currentMonthStr, METHOD_LABELS,
 } from '@/lib/utils'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -389,9 +388,7 @@ function FrequenciaTab({ student }) {
 /* ── Pagamentos Tab ───────────────────────────────────────────────────── */
 function PagamentosTab({ student }) {
   const qc = useQueryClient()
-  const [addOpen, setAddOpen]   = useState(false)
-  const [paidOpen, setPaidOpen] = useState(false)
-  const [selectedPayment, setSelectedPayment] = useState(null)
+  const [addOpen, setAddOpen] = useState(false)
 
   const { data: payments = [] } = useQuery({
     queryKey: ['student-payments', student.id],
@@ -402,119 +399,75 @@ function PagamentosTab({ student }) {
     .filter(p => p.status === 'paid' && p.paid_at?.startsWith(String(new Date().getFullYear())))
     .reduce((s, p) => s + p.amount, 0)
 
-  const overdue = payments.filter(p => p.status === 'overdue').length
-  const nextPending = payments.find(p => p.status === 'pending')
-
-  const markPaidMutation = useMutation({
-    mutationFn: ({ id, data }) => paymentsApi.markPaid(id, data),
+  const pagarMutation = useMutation({
+    mutationFn: () => studentsApi.pagar(student.id),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['student', student.id] })
       qc.invalidateQueries({ queryKey: ['student-payments', student.id] })
-      toast.success('Pagamento registrado!')
-      setPaidOpen(false)
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+      toast.success('Pagamento confirmado!')
     },
     onError: err => toast.error(err.response?.data?.detail || 'Erro'),
   })
 
-  const [paidForm, setPaidForm] = useState({ paid_at: '', payment_method: 'pix' })
-
-  const openMarkPaid = (p) => {
-    setSelectedPayment(p)
-    setPaidForm({ paid_at: format(new Date(), 'yyyy-MM-dd'), payment_method: 'pix' })
-    setPaidOpen(true)
-  }
+  const today = new Date(); today.setHours(0,0,0,0)
+  const pp = student.proximo_pagamento
+  const ppDate = pp ? new Date(pp) : null
+  const isOverdue = ppDate && ppDate < today
+  const isDueSoon = ppDate && ppDate >= today && ppDate <= new Date(today.getTime() + 3*86400000)
+  const showConfirm = isOverdue || isDueSoon
 
   return (
     <div className="pb-6 space-y-4">
-      {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-2">
+      {/* Summary */}
+      <div className="grid grid-cols-2 gap-2">
         <MiniCard label="Pago no ano" value={fmtMoney(totalPaidYear)} color="text-success" />
-        <MiniCard label="Vencidos" value={overdue} color={overdue > 0 ? 'text-danger' : 'text-primary'} />
-        <MiniCard label="Próx. venc." value={nextPending ? fmtDate(nextPending.due_date) : '—'} />
+        <MiniCard
+          label="Próx. vencimento"
+          value={pp ? fmtDate(pp) : '—'}
+          color={isOverdue ? 'text-danger' : isDueSoon ? 'text-warning' : 'text-primary'}
+        />
       </div>
 
-      <Button onClick={() => setAddOpen(true)} variant="outline" className="w-full">
-        + Registrar pagamento
-      </Button>
+      {showConfirm && (
+        <Button
+          className="w-full"
+          disabled={pagarMutation.isPending}
+          onClick={() => pagarMutation.mutate()}
+        >
+          {pagarMutation.isPending ? 'Confirmando...' : `Confirmar mensalidade · ${fmtMoney(student.plan?.price ?? 0)}`}
+        </Button>
+      )}
 
-      {/* Payment list */}
+      {/* Payment history */}
       <div className="bg-white border border-border rounded-2xl overflow-hidden">
         {payments.length === 0 && (
           <p className="p-4 text-center text-sm text-muted">Nenhum pagamento registrado</p>
         )}
-        {payments.map((p, i) => {
-          const st = STATUS_PAYMENT[p.status]
-          return (
-            <div
-              key={p.id}
-              className={`flex items-center justify-between p-4 ${i < payments.length - 1 ? 'border-b border-border' : ''}`}
-            >
-              <div>
-                <p className="text-sm font-semibold text-primary">Venc. {fmtDate(p.due_date)}</p>
-                <p className="text-xs text-muted">
-                  {p.paid_at ? `Pago em ${fmtDate(p.paid_at)}` : '—'}
-                  {p.payment_method ? ` · ${METHOD_LABELS[p.payment_method]}` : ''}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <p className="text-sm font-bold text-primary">{fmtMoney(p.amount)}</p>
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${st.color}`}>{st.label}</span>
-                </div>
-                {p.status !== 'paid' && (
-                  <button
-                    onClick={() => openMarkPaid(p)}
-                    className="w-8 h-8 rounded-xl bg-accent/10 text-accent flex items-center justify-center hover:bg-accent/20 transition-colors"
-                  >
-                    <Check size={14} strokeWidth={3} />
-                  </button>
-                )}
-              </div>
+        {payments.filter(p => p.status === 'paid').map((p, i, arr) => (
+          <div
+            key={p.id}
+            className={`flex items-center justify-between p-4 ${i < arr.length - 1 ? 'border-b border-border' : ''}`}
+          >
+            <div>
+              <p className="text-sm font-semibold text-primary">Pago em {fmtDate(p.paid_at)}</p>
+              <p className="text-xs text-muted">{p.payment_method ? METHOD_LABELS[p.payment_method] : '—'}</p>
             </div>
-          )
-        })}
+            <p className="text-sm font-bold text-success">{fmtMoney(p.amount)}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Add payment dialog */}
+      <Button onClick={() => setAddOpen(true)} variant="outline" className="w-full text-sm">
+        + Lançar pagamento manual
+      </Button>
+
       <AddPaymentDialog
         open={addOpen}
         onClose={() => setAddOpen(false)}
         studentId={student.id}
         planPrice={student.plan?.price}
       />
-
-      {/* Mark paid dialog */}
-      <Dialog open={paidOpen} onOpenChange={setPaidOpen}>
-        <DialogContent title="Registrar pagamento">
-          <div className="space-y-4">
-            <p className="text-sm text-muted">
-              Vencimento: {fmtDate(selectedPayment?.due_date)} · {fmtMoney(selectedPayment?.amount)}
-            </p>
-            <div>
-              <Label>Data do pagamento</Label>
-              <Input type="date" value={paidForm.paid_at} onChange={e => setPaidForm(f=>({...f,paid_at:e.target.value}))} />
-            </div>
-            <div>
-              <Label>Forma de pagamento</Label>
-              <Select value={paidForm.payment_method} onValueChange={v => setPaidForm(f=>({...f,payment_method:v}))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pix">Pix</SelectItem>
-                  <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                  <SelectItem value="cartao">Cartão</SelectItem>
-                  <SelectItem value="transferencia">Transferência</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button
-              className="w-full"
-              disabled={!paidForm.paid_at || markPaidMutation.isPending}
-              onClick={() => markPaidMutation.mutate({ id: selectedPayment.id, data: paidForm })}
-            >
-              {markPaidMutation.isPending ? 'Salvando...' : 'Confirmar pagamento'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

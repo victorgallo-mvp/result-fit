@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { attendancesApi } from '@/api/attendances'
 import { useAuth } from '@/hooks/useAuth'
 import { avatarColor, DAY_LABELS, todayStr } from '@/lib/utils'
-import { Check, ChevronRight, CheckCheck, Users, Cake } from 'lucide-react'
+import { Check, ChevronRight, Users, Cake } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -15,8 +15,6 @@ export default function Hoje() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const [markingAll, setMarkingAll] = useState(false)
-
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['today'],
     queryFn: attendancesApi.today,
@@ -42,21 +40,6 @@ export default function Hoje() {
     },
   })
 
-  const markAll = async () => {
-    const unmarked = students.filter(s => !s.marked)
-    if (unmarked.length === 0) return toast('Todos já estão marcados')
-    setMarkingAll(true)
-    try {
-      await Promise.all(unmarked.map(s => attendancesApi.mark(s.id, TODAY)))
-      qc.invalidateQueries({ queryKey: ['today'] })
-      toast.success(`${unmarked.length} presença${unmarked.length > 1 ? 's' : ''} registrada${unmarked.length > 1 ? 's' : ''}`)
-    } catch {
-      toast.error('Erro ao marcar presenças')
-    } finally {
-      setMarkingAll(false)
-    }
-  }
-
   const marked = students.filter(s => s.marked).length
   const total  = students.length
   const today  = new Date()
@@ -72,20 +55,6 @@ export default function Hoje() {
           <p className="text-sm text-muted pb-0.5">{user?.name}</p>
         </div>
       </div>
-
-      {/* Mark all button */}
-      {students.length > 0 && (
-        <div className="px-4 pt-4">
-          <button
-            onClick={markAll}
-            disabled={markingAll || marked === total}
-            className="w-full flex items-center justify-center gap-2 h-11 rounded-xl bg-accent/10 border border-accent/20 text-accent font-semibold text-sm hover:bg-accent/15 active:scale-98 transition-all disabled:opacity-40"
-          >
-            <CheckCheck size={17} />
-            {markingAll ? 'Marcando...' : 'Marcar todos presentes'}
-          </button>
-        </div>
-      )}
 
       {/* Student list */}
       <div className="flex-1 px-4 pt-3 space-y-2">
