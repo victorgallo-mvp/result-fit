@@ -1,27 +1,22 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { dashboardApi } from '@/api/dashboard'
-import { paymentsApi } from '@/api/payments'
 import { studentsApi } from '@/api/students'
+import { paymentsApi } from '@/api/payments'
 import { fmtMoney, fmtDate, currentMonthStr, avatarColor } from '@/lib/utils'
 import { Clock, AlertCircle, ChevronRight, CheckCircle, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { useState } from 'react'
+import { toast } from 'sonner'
 
 export default function Dashboard() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const month = currentMonthStr()
 
-  const { data: summary, isLoading: loadSummary } = useQuery({
-    queryKey: ['dashboard-summary'],
-    queryFn: dashboardApi.summary,
-  })
-
-  const { data: payments } = useQuery({
-    queryKey: ['payments-dashboard'],
-    queryFn: paymentsApi.dashboard,
+  const { data, isLoading } = useQuery({
+    queryKey: ['dashboard'],
+    queryFn: dashboardApi.get,
   })
 
   const { data: birthdays } = useQuery({
@@ -36,9 +31,10 @@ export default function Dashboard() {
         payment_method: 'pix',
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['payments-dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      toast.success('Pagamento confirmado!')
     },
+    onError: () => toast.error('Erro ao confirmar pagamento'),
   })
 
   const monthLabel = format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })
@@ -49,31 +45,27 @@ export default function Dashboard() {
       <h1 className="text-2xl font-extrabold text-primary mt-0.5 mb-5">Dashboard</h1>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-3 mb-5 stagger">
-        <KpiCard icon={Clock}       label="Vencendo em 7 dias"   value={summary?.mensalidades_vencendo ?? '—'}  loading={loadSummary} warn={summary?.mensalidades_vencendo > 0} />
-        <KpiCard icon={AlertCircle} label="Mensalidades vencidas" value={summary?.mensalidades_vencidas ?? '—'} loading={loadSummary} danger={summary?.mensalidades_vencidas > 0} />
+      <div className="grid grid-cols-2 gap-3 mb-5">
+        <KpiCard
+          icon={AlertCircle}
+          label="Mensalidades vencidas"
+          value={data?.mensalidades_vencidas ?? '—'}
+          loading={isLoading}
+          danger={data?.mensalidades_vencidas > 0}
+        />
+        <KpiCard
+          icon={Clock}
+          label="Vencendo em 3 dias"
+          value={data?.mensalidades_vencendo ?? '—'}
+          loading={isLoading}
+          warn={data?.mensalidades_vencendo > 0}
+        />
       </div>
 
-      {/* Frequência */}
-      {summary && (
-        <div className="bg-white border border-border rounded-2xl p-4 shadow-sm mb-5">
-          <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">Frequência média — mês atual</p>
-          <div className="flex items-end justify-between mb-2">
-            <span className="text-3xl font-extrabold text-primary">{summary.taxa_frequencia_media}%</span>
-          </div>
-          <div className="h-1.5 bg-border rounded-full overflow-hidden">
-            <div
-              className="h-full bg-accent rounded-full transition-all duration-700"
-              style={{ width: `${summary.taxa_frequencia_media}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Vencidas */}
-      {payments?.vencidas?.length > 0 && (
+      {/* Vencidas — com confirmar pagamento */}
+      {data?.vencidas?.length > 0 && (
         <Section title="Mensalidades vencidas" className="mb-3" titleColor="text-danger">
-          {payments.vencidas.map(p => (
+          {data.vencidas.map(p => (
             <PaymentRow
               key={p.id}
               payment={p}
@@ -86,29 +78,30 @@ export default function Dashboard() {
         </Section>
       )}
 
-      {/* Vencendo em 7 dias */}
-      {payments?.vencendo_7_dias?.length > 0 && (
-        <Section title="Vencendo nos próximos 7 dias" className="mb-3" titleColor="text-warning">
-          {payments.vencendo_7_dias.map(p => (
-            <PaymentRow key={p.id} payment={p} onClick={() => navigate(`/alunos/${p.student_id}`)} color="text-warning" />
-          ))}
-        </Section>
-      )}
-
-      {/* Vencendo em breve (8-30 dias) */}
-      {payments?.vencendo_em_breve?.length > 0 && (
-        <Section title="Vencendo em breve" className="mb-3" titleColor="text-muted">
-          {payments.vencendo_em_breve.map(p => (
-            <PaymentRow key={p.id} payment={p} onClick={() => navigate(`/alunos/${p.student_id}`)} color="text-primary" />
+      {/* Vencendo em 3 dias */}
+      {data?.vencendo_3_dias?.length > 0 && (
+        <Section title="Vencendo nos próximos 3 dias" className="mb-3" titleColor="text-warning">
+          {data.vencendo_3_dias.map(p => (
+            <PaymentRow
+              key={p.id}
+              payment={p}
+              onClick={() => navigate(`/alunos/${p.student_id}`)}
+              color="text-warning"
+            />
           ))}
         </Section>
       )}
 
       {/* Pagas no mês */}
-      {payments?.pagas_mes?.length > 0 && (
+      {data?.pagas_mes?.length > 0 && (
         <Section title={`Pagas em ${format(new Date(), 'MMMM', { locale: ptBR })}`} className="mb-3" titleColor="text-success">
-          {payments.pagas_mes.map(p => (
-            <PaymentRow key={p.id} payment={p} onClick={() => navigate(`/alunos/${p.student_id}`)} color="text-success" />
+          {data.pagas_mes.map(p => (
+            <PaymentRow
+              key={p.id}
+              payment={p}
+              onClick={() => navigate(`/alunos/${p.student_id}`)}
+              color="text-success"
+            />
           ))}
         </Section>
       )}
@@ -168,19 +161,6 @@ function Section({ title, children, className, titleColor = 'text-muted' }) {
 }
 
 function PaymentRow({ payment, onClick, color, onConfirm, confirming }) {
-  const [tapped, setTapped] = useState(false)
-
-  function handleConfirm(e) {
-    e.stopPropagation()
-    if (tapped) {
-      onConfirm()
-      setTapped(false)
-    } else {
-      setTapped(true)
-      setTimeout(() => setTapped(false), 3000)
-    }
-  }
-
   return (
     <div className="flex items-center gap-2 py-2.5 border-b border-border last:border-0">
       <button onClick={onClick} className="flex items-center justify-between flex-1 min-w-0 text-left">
@@ -196,14 +176,10 @@ function PaymentRow({ payment, onClick, color, onConfirm, confirming }) {
 
       {onConfirm && (
         <button
-          onClick={handleConfirm}
+          onClick={(e) => { e.stopPropagation(); onConfirm() }}
           disabled={confirming}
-          title={tapped ? 'Clique novamente para confirmar' : 'Confirmar pagamento'}
-          className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-            tapped
-              ? 'bg-success text-white'
-              : 'bg-success/10 text-success hover:bg-success/20'
-          }`}
+          title="Confirmar pagamento"
+          className="flex-shrink-0 w-8 h-8 rounded-full bg-success/10 text-success flex items-center justify-center hover:bg-success/20 active:bg-success active:text-white transition-colors"
         >
           {confirming
             ? <Loader2 size={15} className="animate-spin" />

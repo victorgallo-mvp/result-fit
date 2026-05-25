@@ -23,12 +23,6 @@ async def create_payment(data: PaymentCreate, user=Depends(get_current_user)):
     return await payment_service.create_payment(data, tid, uid)
 
 
-@router.get("/dashboard")
-async def dashboard_payments(user=Depends(get_current_user)):
-    tid, uid = str(user["tenant_id"]), str(user["_id"])
-    return await payment_service.get_dashboard_payments(tid, uid)
-
-
 @router.put("/{payment_id}/mark-paid")
 async def mark_paid(payment_id: str, data: PaymentMarkPaid, user=Depends(get_current_user)):
     tid, uid = str(user["tenant_id"]), str(user["_id"])

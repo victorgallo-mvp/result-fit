@@ -6,5 +6,4 @@ export const paymentsApi = {
   markPaid:  (id, data)     => api.put(`/payments/${id}/mark-paid`, data).then(r => r.data),
   update:    (id, data)     => api.put(`/payments/${id}`, data).then(r => r.data),
   remove:    (id)           => api.delete(`/payments/${id}`),
-  dashboard: ()             => api.get('/payments/dashboard').then(r => r.data),
 }

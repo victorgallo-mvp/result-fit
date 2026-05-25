@@ -1,4 +1,4 @@
-from datetime import datetime, timezone, date, timedelta
+from datetime import datetime, timezone, date
 from bson import ObjectId
 from fastapi import HTTPException
 from app.database import get_db
@@ -110,66 +110,6 @@ async def get_student_payments(student_id: str, tenant_id: str, user_id: str) ->
     docs = await db.payments.find({"student_id": ObjectId(student_id)}).sort("due_date", -1).to_list(length=200)
     return [serialize_doc(d) for d in docs]
 
-
-async def get_dashboard_payments(tenant_id: str, user_id: str) -> dict:
-    db = get_db()
-    student_ids = [
-        s["_id"] async for s in db.students.find(
-            {"tenant_id": ObjectId(tenant_id), "assigned_to": ObjectId(user_id), "status": "active"},
-            {"_id": 1},
-        )
-    ]
-
-    today = date.today()
-    in_7_days = today + timedelta(days=7)
-    in_30_days = today + timedelta(days=30)
-    first_month = datetime.combine(date(today.year, today.month, 1), datetime.min.time())
-    last_month = datetime.combine(today, datetime.max.time())
-
-    today_dt = datetime.combine(today, datetime.min.time())
-    in_7_days_dt = datetime.combine(in_7_days, datetime.min.time())
-    in_8_days_dt = datetime.combine(today + timedelta(days=8), datetime.min.time())
-    in_30_days_dt = datetime.combine(in_30_days, datetime.min.time())
-
-    async def enrich(docs):
-        result = []
-        for d in docs:
-            doc = serialize_doc(d)
-            s = await db.students.find_one({"_id": d["student_id"]}, {"name": 1})
-            doc["student_name"] = s["name"] if s else None
-            result.append(doc)
-        return result
-
-    vencendo = await db.payments.find({
-        "student_id": {"$in": student_ids},
-        "status": "pending",
-        "due_date": {"$gte": today_dt, "$lte": in_7_days_dt},
-    }).sort("due_date", 1).to_list(length=100)
-
-    vencendo_breve = await db.payments.find({
-        "student_id": {"$in": student_ids},
-        "status": "pending",
-        "due_date": {"$gte": in_8_days_dt, "$lte": in_30_days_dt},
-    }).sort("due_date", 1).to_list(length=100)
-
-    vencidas = await db.payments.find({
-        "student_id": {"$in": student_ids},
-        "status": {"$in": ["pending", "overdue"]},
-        "due_date": {"$lt": today_dt},
-    }).sort("due_date", 1).to_list(length=100)
-
-    pagas_mes = await db.payments.find({
-        "student_id": {"$in": student_ids},
-        "status": "paid",
-        "paid_at": {"$gte": first_month, "$lte": last_month},
-    }).sort("paid_at", -1).to_list(length=100)
-
-    return {
-        "vencendo_7_dias": await enrich(vencendo),
-        "vencendo_em_breve": await enrich(vencendo_breve),
-        "vencidas": await enrich(vencidas),
-        "pagas_mes": await enrich(pagas_mes),
-    }
 
 
 async def update_payment(payment_id: str, data: PaymentUpdate, tenant_id: str, user_id: str) -> dict:

@@ -26,9 +26,11 @@ export default function AlunoDetalhe() {
   const { id } = useParams()
   const navigate = useNavigate()
 
-  const { data: student, isLoading } = useQuery({
+  const { data: student, isLoading, error } = useQuery({
     queryKey: ['student', id],
     queryFn: () => studentsApi.get(id),
+    retry: 2,
+    retryDelay: 800,
   })
 
   if (isLoading) return (
@@ -37,12 +39,16 @@ export default function AlunoDetalhe() {
     </div>
   )
 
-  if (!student) return (
-    <div className="flex flex-col items-center justify-center h-full pt-24">
-      <p className="text-muted">Aluno não encontrado</p>
-      <Button variant="ghost" onClick={() => navigate('/alunos')} className="mt-4">Voltar</Button>
-    </div>
-  )
+  if (error || !student) {
+    const is404 = error?.response?.status === 404
+    return (
+      <div className="flex flex-col items-center justify-center h-full pt-24 px-8 text-center">
+        <p className="font-semibold text-primary">{is404 ? 'Aluno não encontrado' : 'Erro ao carregar aluno'}</p>
+        <p className="text-sm text-muted mt-1">{is404 ? '' : 'Verifique sua conexão e tente novamente'}</p>
+        <Button variant="ghost" onClick={() => navigate('/alunos')} className="mt-4">Voltar</Button>
+      </div>
+    )
+  }
 
   const age = getAge(student.birthday)
   const color = avatarColor(student.name)

@@ -31,7 +31,7 @@ export default function Pagamentos() {
     mutationFn: ({ id, data }) => paymentsApi.markPaid(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['payments'] })
-      qc.invalidateQueries({ queryKey: ['payments-dashboard'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
       toast.success('Pagamento registrado!')
       setPaidOpen(false)
     },
@@ -177,7 +177,7 @@ function AddPaymentDialog({ open, onClose }) {
     mutationFn: (data) => paymentsApi.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['payments'] })
-      qc.invalidateQueries({ queryKey: ['payments-dashboard'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
       toast.success('Pagamento criado!')
       onClose()
       setForm({ student_id:'', amount:'', due_date:'', notes:'' })
