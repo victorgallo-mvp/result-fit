@@ -166,6 +166,7 @@ function CreateStudentDialog({ open, onClose }) {
   const [form, setForm] = useState({
     name: '', phone: '', email: '', birthday: '',
     training_days: [], plan_id: '', due_day: '10', notes: '',
+    last_payment_date: '',
   })
 
   const { data: plans = [] } = useQuery({ queryKey: ['plans'], queryFn: plansApi.list })
@@ -176,7 +177,7 @@ function CreateStudentDialog({ open, onClose }) {
       qc.invalidateQueries({ queryKey: ['students'] })
       toast.success('Aluno cadastrado!')
       onClose()
-      setForm({ name:'',phone:'',email:'',birthday:'',training_days:[],plan_id:'',due_day:'10',notes:'' })
+      setForm({ name:'',phone:'',email:'',birthday:'',training_days:[],plan_id:'',due_day:'10',notes:'',last_payment_date:'' })
     },
     onError: err => toast.error(err.response?.data?.detail || 'Erro ao cadastrar'),
   })
@@ -198,6 +199,7 @@ function CreateStudentDialog({ open, onClose }) {
       due_day: parseInt(form.due_day),
       email: form.email || null,
       birthday: form.birthday || null,
+      last_payment_date: form.last_payment_date || null,
     })
   }
 
@@ -233,6 +235,11 @@ function CreateStudentDialog({ open, onClose }) {
           <div>
             <Label>Dia de vencimento</Label>
             <Input type="number" min={1} max={31} value={form.due_day} onChange={e => setForm(f => ({...f, due_day: e.target.value}))} />
+          </div>
+          <div>
+            <Label>Data do último pagamento</Label>
+            <Input type="date" value={form.last_payment_date} onChange={e => setForm(f => ({...f, last_payment_date: e.target.value}))} />
+            <p className="text-xs text-muted mt-1">Opcional — gera histórico e próximo vencimento automaticamente</p>
           </div>
           <div>
             <Label>Dias de treino *</Label>

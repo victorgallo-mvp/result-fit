@@ -1,3 +1,4 @@
+import calendar
 from datetime import datetime, timezone, date
 from bson import ObjectId
 from fastapi import HTTPException, status
@@ -116,7 +117,51 @@ async def create_student(data: StudentCreate, tenant_id: str, user_id: str) -> d
         "created_at": datetime.now(timezone.utc),
     }
     result = await db.students.insert_one(doc)
-    doc["_id"] = result.inserted_id
+    student_id = result.inserted_id
+    doc["_id"] = student_id
+
+    if data.last_payment_date:
+        lpd = data.last_payment_date
+        paid_dt = datetime.combine(lpd, datetime.min.time())
+
+        # next occurrence of due_day after last_payment_date
+        dd = data.due_day
+        if lpd.day < dd:
+            next_year, next_month = lpd.year, lpd.month
+        else:
+            next_month = lpd.month + 1
+            next_year = lpd.year + next_month // 13
+            next_month = next_month if next_month <= 12 else 1
+        max_day = calendar.monthrange(next_year, next_month)[1]
+        next_due = date(next_year, next_month, min(dd, max_day))
+        next_status = "overdue" if next_due < date.today() else "pending"
+        next_dt = datetime.combine(next_due, datetime.min.time())
+
+        await db.payments.insert_many([
+            {
+                "tenant_id": ObjectId(tenant_id),
+                "student_id": student_id,
+                "amount": plan["price"],
+                "due_date": paid_dt,
+                "status": "paid",
+                "paid_at": paid_dt,
+                "payment_method": None,
+                "notes": "Pagamento inicial",
+                "created_at": datetime.now(timezone.utc),
+            },
+            {
+                "tenant_id": ObjectId(tenant_id),
+                "student_id": student_id,
+                "amount": plan["price"],
+                "due_date": next_dt,
+                "status": next_status,
+                "paid_at": None,
+                "payment_method": None,
+                "notes": "",
+                "created_at": datetime.now(timezone.utc),
+            },
+        ])
+
     return serialize_doc(doc)
 
 
