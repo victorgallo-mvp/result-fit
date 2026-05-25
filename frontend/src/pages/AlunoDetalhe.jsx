@@ -10,7 +10,7 @@ import {
 } from '@/lib/utils'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { Input, Textarea } from '@/components/ui/input'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
@@ -82,24 +82,34 @@ export default function AlunoDetalhe() {
             <TabsTrigger value="info">Info</TabsTrigger>
             <TabsTrigger value="frequencia">Frequência</TabsTrigger>
             <TabsTrigger value="pagamentos">Pagamentos</TabsTrigger>
-            <TabsTrigger value="obs">Obs</TabsTrigger>
           </TabsList>
 
           <TabsContent value="info"><InfoTab student={student} /></TabsContent>
           <TabsContent value="frequencia"><FrequenciaTab student={student} /></TabsContent>
           <TabsContent value="pagamentos"><PagamentosTab student={student} /></TabsContent>
-          <TabsContent value="obs"><ObsTab student={student} /></TabsContent>
         </Tabs>
       </div>
     </div>
   )
 }
 
-/* ── Info Tab ─────────────────────────────────────────────────────────── */
+/* ── Info Tab (inclui observações) ───────────────────────────────────── */
 function InfoTab({ student }) {
   const qc = useQueryClient()
   const [editOpen, setEditOpen] = useState(false)
+  const [notes, setNotes] = useState(student.notes ?? '')
+  const [notesSaved, setNotesSaved] = useState(true)
   const { data: plans = [] } = useQuery({ queryKey: ['plans'], queryFn: plansApi.list })
+
+  const notesMutation = useMutation({
+    mutationFn: () => studentsApi.update(student.id, { notes }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['student', student.id] })
+      setNotesSaved(true)
+      toast.success('Observações salvas!')
+    },
+    onError: () => toast.error('Erro ao salvar'),
+  })
 
   const [form, setForm] = useState({
     name: student.name,
@@ -166,6 +176,28 @@ function InfoTab({ student }) {
       <Button variant="outline" className="w-full" onClick={() => setEditOpen(true)}>
         <Edit2 size={16} /> Editar dados
       </Button>
+
+      {/* Observações inline */}
+      <div className="bg-white border border-border rounded-2xl p-4">
+        <p className="text-xs text-muted font-semibold uppercase tracking-wider mb-2">Observações</p>
+        <textarea
+          rows={4}
+          value={notes}
+          onChange={e => { setNotes(e.target.value); setNotesSaved(false) }}
+          placeholder="Histórico de lesões, metas, preferências..."
+          className="w-full text-sm text-primary bg-transparent resize-none outline-none placeholder:text-muted/50"
+        />
+        {!notesSaved && (
+          <Button
+            size="sm"
+            className="mt-2 w-full"
+            onClick={() => notesMutation.mutate()}
+            disabled={notesMutation.isPending}
+          >
+            {notesMutation.isPending ? 'Salvando...' : 'Salvar observações'}
+          </Button>
+        )}
+      </div>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent title="Editar aluno">
@@ -545,39 +577,3 @@ function AddPaymentDialog({ open, onClose, studentId, planPrice }) {
   )
 }
 
-/* ── Obs Tab ──────────────────────────────────────────────────────────── */
-function ObsTab({ student }) {
-  const qc = useQueryClient()
-  const [notes, setNotes] = useState(student.notes ?? '')
-  const [saved, setSaved] = useState(true)
-
-  const mutation = useMutation({
-    mutationFn: () => studentsApi.update(student.id, { notes }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['student', student.id] })
-      setSaved(true)
-      toast.success('Observações salvas!')
-    },
-    onError: () => toast.error('Erro ao salvar'),
-  })
-
-  return (
-    <div className="pb-6 space-y-3">
-      <Textarea
-        rows={10}
-        value={notes}
-        onChange={e => { setNotes(e.target.value); setSaved(false) }}
-        placeholder="Anotações sobre o aluno: histórico de lesões, preferências, metas..."
-        className="min-h-[200px]"
-      />
-      <Button
-        className="w-full"
-        onClick={() => mutation.mutate()}
-        disabled={saved || mutation.isPending}
-        variant={saved ? 'secondary' : 'default'}
-      >
-        {mutation.isPending ? 'Salvando...' : saved ? 'Salvo ✓' : 'Salvar observações'}
-      </Button>
-    </div>
-  )
-}

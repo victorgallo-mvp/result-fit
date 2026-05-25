@@ -21,8 +21,9 @@ async def list_students(tenant_id: str, user_id: str, status_filter: str | None,
     if search:
         query["name"] = {"$regex": search, "$options": "i"}
 
-    cursor = db.students.find(query).sort("name", 1)
-    students = await cursor.to_list(length=500)
+    students = await db.students.find(query).sort("name", 1).to_list(length=500)
+
+    student_ids = [s["_id"] for s in students]
 
     plan_ids = list({s["plan_id"] for s in students if s.get("plan_id")})
     plans = {}
@@ -30,11 +31,34 @@ async def list_students(tenant_id: str, user_id: str, status_filter: str | None,
         async for p in db.plans.find({"_id": {"$in": plan_ids}}):
             plans[p["_id"]] = p
 
+    # próximo pagamento pendente/vencido por aluno — 1 query via aggregation
+    payment_map = {}
+    if student_ids:
+        pipeline = [
+            {"$match": {"student_id": {"$in": student_ids}, "status": {"$in": ["pending", "overdue"]}}},
+            {"$sort": {"due_date": 1}},
+            {"$group": {
+                "_id": "$student_id",
+                "payment_id": {"$first": "$_id"},
+                "due_date":   {"$first": "$due_date"},
+                "amount":     {"$first": "$amount"},
+                "status":     {"$first": "$status"},
+            }},
+        ]
+        async for p in db.payments.aggregate(pipeline):
+            due = p["due_date"]
+            payment_map[p["_id"]] = {
+                "id":       str(p["payment_id"]),
+                "due_date": due.strftime("%Y-%m-%d") if hasattr(due, "strftime") else str(due)[:10],
+                "amount":   p["amount"],
+                "status":   p["status"],
+            }
+
     result = []
     for s in students:
         doc = serialize_doc(s)
-        plan = plans.get(s.get("plan_id"))
-        doc["plan"] = serialize_doc(plan) if plan else None
+        doc["plan"] = serialize_doc(plans.get(s.get("plan_id")))
+        doc["next_payment"] = payment_map.get(s["_id"])
         result.append(doc)
     return result
 

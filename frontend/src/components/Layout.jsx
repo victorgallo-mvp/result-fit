@@ -6,15 +6,15 @@ import { BirthdayModal } from './BirthdayModal'
 import { cn } from '@/lib/utils'
 
 const mainNav = [
-  { to: '/',           icon: Home,       label: 'Hoje'       },
-  { to: '/dashboard',  icon: BarChart2,  label: 'Dashboard'  },
-  { to: '/alunos',     icon: Users,      label: 'Alunos'     },
-  { to: '/pagamentos', icon: CreditCard, label: 'Pagamentos' },
+  { to: '/',          icon: Home,      label: 'Hoje'      },
+  { to: '/dashboard', icon: BarChart2, label: 'Dashboard' },
+  { to: '/alunos',    icon: Users,     label: 'Alunos'    },
 ]
 
 const moreNav = [
-  { to: '/planos',     icon: BookOpen,   label: 'Planos'       },
+  { to: '/pagamentos', icon: CreditCard, label: 'Pagamentos'   },
   { to: '/financeiro', icon: DollarSign, label: 'Financeiro'   },
+  { to: '/planos',     icon: BookOpen,   label: 'Planos'       },
   { to: '/config',     icon: Settings,   label: 'Configurações' },
 ]
 

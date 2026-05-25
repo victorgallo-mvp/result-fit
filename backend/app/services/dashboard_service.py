@@ -37,8 +37,8 @@ async def get_dashboard(tenant_id: str, user_id: str) -> dict:
             "pagas_mes": [],
         }
 
-    # 4 queries em paralelo
-    vencendo_docs, vencidas_docs, pagas_docs, attended_count = await asyncio.gather(
+    # 5 queries em paralelo
+    vencendo_docs, vencidas_docs, pagas_docs, attended_count, birthday_docs = await asyncio.gather(
         db.payments.find({
             "student_id": {"$in": student_ids},
             "status": "pending",
@@ -58,6 +58,12 @@ async def get_dashboard(tenant_id: str, user_id: str) -> dict:
             "student_id": {"$in": student_ids},
             "date": {"$gte": first_month_dt, "$lte": last_dt},
         }),
+        db.students.aggregate([
+            {"$match": {"tenant_id": tid, "assigned_to": uid, "status": "active", "birthday": {"$ne": None}}},
+            {"$addFields": {"birth_month": {"$month": "$birthday"}, "birth_day": {"$dayOfMonth": "$birthday"}}},
+            {"$match": {"birth_month": today.month}},
+            {"$sort": {"birth_day": 1}},
+        ]).to_list(length=100),
     )
 
     # frequência: usa training_days já carregados, sem queries extras
@@ -81,6 +87,13 @@ async def get_dashboard(tenant_id: str, user_id: str) -> dict:
             result.append(doc)
         return result
 
+    birthdays = []
+    for s in birthday_docs:
+        doc = serialize_doc(s)
+        if s.get("birthday"):
+            doc["age_completing"] = today.year - s["birthday"].year
+        birthdays.append(doc)
+
     return {
         "total_alunos_ativos": len(student_ids),
         "mensalidades_vencendo": len(vencendo_docs),
@@ -88,5 +101,5 @@ async def get_dashboard(tenant_id: str, user_id: str) -> dict:
         "taxa_frequencia_media": taxa,
         "vencendo_3_dias": enrich(vencendo_docs),
         "vencidas": enrich(vencidas_docs),
-        "pagas_mes": enrich(pagas_docs),
+        "aniversariantes": birthdays,
     }

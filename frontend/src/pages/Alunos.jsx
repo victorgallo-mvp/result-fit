@@ -2,20 +2,23 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { studentsApi } from '@/api/students'
+import { paymentsApi } from '@/api/payments'
 import { plansApi } from '@/api/plans'
-import { avatarColor, DAY_LABELS, fmtDate } from '@/lib/utils'
+import { avatarColor, DAY_LABELS, fmtDate, fmtMoney } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { Search, Plus, ChevronRight, Users } from 'lucide-react'
+import { Search, Plus, ChevronRight, Users, CheckCircle, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { format } from 'date-fns'
 
 const DAYS = ['mon','tue','wed','thu','fri','sat','sun']
 
 export default function Alunos() {
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('active')
   const [createOpen, setCreateOpen] = useState(false)
@@ -23,6 +26,20 @@ export default function Alunos() {
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['students', statusFilter, search],
     queryFn: () => studentsApi.list({ status: statusFilter || undefined, search: search || undefined }),
+  })
+
+  const confirmMutation = useMutation({
+    mutationFn: (paymentId) =>
+      paymentsApi.markPaid(paymentId, {
+        paid_at: format(new Date(), 'yyyy-MM-dd'),
+        payment_method: 'pix',
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['students'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+      toast.success('Pagamento confirmado!')
+    },
+    onError: () => toast.error('Erro ao confirmar pagamento'),
   })
 
   return (
@@ -80,34 +97,66 @@ export default function Alunos() {
 
       <div className="space-y-2 stagger">
         {students.map(s => (
-          <button
+          <StudentCard
             key={s.id}
+            student={s}
             onClick={() => navigate(`/alunos/${s.id}`)}
-            className="pressable flex items-center gap-4 w-full p-4 bg-white border border-border rounded-2xl text-left"
-          >
-            <div
-              className="w-12 h-12 rounded-full flex items-center justify-center text-white font-extrabold text-lg flex-shrink-0"
-              style={{ backgroundColor: avatarColor(s.name) }}
-            >
-              {s.name[0]}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-primary truncate">{s.name}</p>
-              <p className="text-xs text-muted mt-0.5">
-                {s.plan?.name ?? 'Sem plano'} · {s.training_days?.map(d => DAY_LABELS[d]).join(', ')}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${s.status === 'active' ? 'bg-success/10 text-success' : 'bg-muted/10 text-muted'}`}>
-                {s.status === 'active' ? 'Ativo' : 'Inativo'}
-              </span>
-              <ChevronRight size={16} className="text-muted" />
-            </div>
-          </button>
+            onConfirm={s.next_payment ? () => confirmMutation.mutate(s.next_payment.id) : null}
+            confirming={confirmMutation.isPending && confirmMutation.variables === s.next_payment?.id}
+          />
         ))}
       </div>
 
       <CreateStudentDialog open={createOpen} onClose={() => setCreateOpen(false)} />
+    </div>
+  )
+}
+
+function StudentCard({ student: s, onClick, onConfirm, confirming }) {
+  const np = s.next_payment
+  const isOverdue = np?.status === 'overdue'
+  const isPending = np?.status === 'pending'
+
+  return (
+    <div className="pressable flex items-center gap-3 w-full p-4 bg-white border border-border rounded-2xl text-left">
+      <button onClick={onClick} className="flex items-center gap-3 flex-1 min-w-0">
+        <div
+          className="w-11 h-11 rounded-full flex items-center justify-center text-white font-extrabold text-lg flex-shrink-0"
+          style={{ backgroundColor: avatarColor(s.name) }}
+        >
+          {s.name[0]}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-primary truncate">{s.name}</p>
+          <p className="text-xs text-muted mt-0.5 truncate">
+            {s.plan?.name ?? 'Sem plano'} · {s.training_days?.map(d => DAY_LABELS[d]).join(', ')}
+          </p>
+          {np && (
+            <p className={`text-xs font-semibold mt-0.5 ${isOverdue ? 'text-danger' : isPending ? 'text-warning' : 'text-muted'}`}>
+              {isOverdue ? 'Venceu' : 'Vence'} {fmtDate(np.due_date)} · {fmtMoney(np.amount)}
+            </p>
+          )}
+        </div>
+        <ChevronRight size={16} className="text-muted flex-shrink-0" />
+      </button>
+
+      {onConfirm && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onConfirm() }}
+          disabled={confirming}
+          title="Confirmar pagamento"
+          className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
+            isOverdue
+              ? 'bg-danger/10 text-danger hover:bg-danger/20'
+              : 'bg-warning/10 text-warning hover:bg-warning/20'
+          }`}
+        >
+          {confirming
+            ? <Loader2 size={15} className="animate-spin" />
+            : <CheckCircle size={15} />
+          }
+        </button>
+      )}
     </div>
   )
 }
@@ -166,10 +215,10 @@ function CreateStudentDialog({ open, onClose }) {
           </div>
           <div>
             <Label>Email</Label>
-            <Input type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} placeholder="email@exemplo.com" />
+            <Input type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} />
           </div>
           <div>
-            <Label>Data de nascimento</Label>
+            <Label>Nascimento</Label>
             <Input type="date" value={form.birthday} onChange={e => setForm(f => ({...f, birthday: e.target.value}))} />
           </div>
           <div>

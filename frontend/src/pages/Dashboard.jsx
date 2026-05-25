@@ -1,9 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { dashboardApi } from '@/api/dashboard'
-import { studentsApi } from '@/api/students'
 import { paymentsApi } from '@/api/payments'
-import { fmtMoney, fmtDate, currentMonthStr, avatarColor } from '@/lib/utils'
+import { fmtMoney, fmtDate, avatarColor } from '@/lib/utils'
 import { Clock, AlertCircle, ChevronRight, CheckCircle, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -12,16 +11,10 @@ import { toast } from 'sonner'
 export default function Dashboard() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const month = currentMonthStr()
 
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard'],
     queryFn: dashboardApi.get,
-  })
-
-  const { data: birthdays } = useQuery({
-    queryKey: ['birthdays-month', month],
-    queryFn: () => studentsApi.birthdaysMonth(month),
   })
 
   const confirmMutation = useMutation({
@@ -92,24 +85,10 @@ export default function Dashboard() {
         </Section>
       )}
 
-      {/* Pagas no mês */}
-      {data?.pagas_mes?.length > 0 && (
-        <Section title={`Pagas em ${format(new Date(), 'MMMM', { locale: ptBR })}`} className="mb-3" titleColor="text-success">
-          {data.pagas_mes.map(p => (
-            <PaymentRow
-              key={p.id}
-              payment={p}
-              onClick={() => navigate(`/alunos/${p.student_id}`)}
-              color="text-success"
-            />
-          ))}
-        </Section>
-      )}
-
       {/* Aniversariantes do mês */}
-      {birthdays?.length > 0 && (
+      {data?.aniversariantes?.length > 0 && (
         <Section title="Aniversariantes do mês" className="mb-3">
-          {birthdays.map(s => (
+          {data.aniversariantes.map(s => (
             <button
               key={s.id}
               onClick={() => navigate(`/alunos/${s.id}`)}
@@ -129,6 +108,13 @@ export default function Dashboard() {
             </button>
           ))}
         </Section>
+      )}
+
+      {!isLoading && !data?.vencidas?.length && !data?.vencendo_3_dias?.length && (
+        <div className="text-center py-16">
+          <p className="font-semibold text-primary">Tudo em dia</p>
+          <p className="text-sm text-muted mt-1">Nenhum pagamento vencido ou próximo do vencimento</p>
+        </div>
       )}
     </div>
   )
