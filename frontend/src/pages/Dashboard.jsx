@@ -1,15 +1,17 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { dashboardApi } from '@/api/dashboard'
 import { paymentsApi } from '@/api/payments'
 import { studentsApi } from '@/api/students'
-import { fmtMoney, fmtDate, currentMonthStr, avatarColor, getAge } from '@/lib/utils'
-import { Users, TrendingUp, AlertCircle, Clock, ChevronRight, Cake } from 'lucide-react'
+import { fmtMoney, fmtDate, currentMonthStr, avatarColor } from '@/lib/utils'
+import { Clock, AlertCircle, ChevronRight, CheckCircle, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { useState } from 'react'
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const month = currentMonthStr()
 
   const { data: summary, isLoading: loadSummary } = useQuery({
@@ -27,6 +29,18 @@ export default function Dashboard() {
     queryFn: () => studentsApi.birthdaysMonth(month),
   })
 
+  const confirmMutation = useMutation({
+    mutationFn: (id) =>
+      paymentsApi.markPaid(id, {
+        paid_at: format(new Date(), 'yyyy-MM-dd'),
+        payment_method: 'pix',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payments-dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] })
+    },
+  })
+
   const monthLabel = format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })
 
   return (
@@ -36,10 +50,8 @@ export default function Dashboard() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-3 mb-5 stagger">
-        <KpiCard icon={Users}       label="Alunos ativos"        value={summary?.total_alunos_ativos ?? '—'}          loading={loadSummary} accent />
-        <KpiCard icon={TrendingUp}  label="Faturamento mês"      value={summary ? fmtMoney(summary.faturamento_mes) : '—'} loading={loadSummary} />
-        <KpiCard icon={Clock}       label="Vencendo em 7 dias"   value={summary?.mensalidades_vencendo ?? '—'}         loading={loadSummary} warn={summary?.mensalidades_vencendo > 0} />
-        <KpiCard icon={AlertCircle} label="Mensalidades vencidas" value={summary?.mensalidades_vencidas ?? '—'}        loading={loadSummary} danger={summary?.mensalidades_vencidas > 0} />
+        <KpiCard icon={Clock}       label="Vencendo em 7 dias"   value={summary?.mensalidades_vencendo ?? '—'}  loading={loadSummary} warn={summary?.mensalidades_vencendo > 0} />
+        <KpiCard icon={AlertCircle} label="Mensalidades vencidas" value={summary?.mensalidades_vencidas ?? '—'} loading={loadSummary} danger={summary?.mensalidades_vencidas > 0} />
       </div>
 
       {/* Frequência */}
@@ -58,6 +70,22 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Vencidas */}
+      {payments?.vencidas?.length > 0 && (
+        <Section title="Mensalidades vencidas" className="mb-3" titleColor="text-danger">
+          {payments.vencidas.map(p => (
+            <PaymentRow
+              key={p.id}
+              payment={p}
+              onClick={() => navigate(`/alunos/${p.student_id}`)}
+              color="text-danger"
+              onConfirm={() => confirmMutation.mutate(p.id)}
+              confirming={confirmMutation.isPending && confirmMutation.variables === p.id}
+            />
+          ))}
+        </Section>
+      )}
+
       {/* Vencendo em 7 dias */}
       {payments?.vencendo_7_dias?.length > 0 && (
         <Section title="Vencendo nos próximos 7 dias" className="mb-3" titleColor="text-warning">
@@ -67,11 +95,11 @@ export default function Dashboard() {
         </Section>
       )}
 
-      {/* Vencidas */}
-      {payments?.vencidas?.length > 0 && (
-        <Section title="Mensalidades vencidas" className="mb-3" titleColor="text-danger">
-          {payments.vencidas.map(p => (
-            <PaymentRow key={p.id} payment={p} onClick={() => navigate(`/alunos/${p.student_id}`)} color="text-danger" />
+      {/* Vencendo em breve (8-30 dias) */}
+      {payments?.vencendo_em_breve?.length > 0 && (
+        <Section title="Vencendo em breve" className="mb-3" titleColor="text-muted">
+          {payments.vencendo_em_breve.map(p => (
+            <PaymentRow key={p.id} payment={p} onClick={() => navigate(`/alunos/${p.student_id}`)} color="text-primary" />
           ))}
         </Section>
       )}
@@ -113,9 +141,9 @@ export default function Dashboard() {
   )
 }
 
-function KpiCard({ icon: Icon, label, value, loading, accent, warn, danger }) {
-  const textColor = danger ? 'text-danger' : warn ? 'text-warning' : accent ? 'text-accent' : 'text-primary'
-  const bgColor   = danger ? 'bg-danger/10' : warn ? 'bg-warning/10' : accent ? 'bg-accent/10' : 'bg-raised'
+function KpiCard({ icon: Icon, label, value, loading, warn, danger }) {
+  const textColor = danger ? 'text-danger' : warn ? 'text-warning' : 'text-primary'
+  const bgColor   = danger ? 'bg-danger/10' : warn ? 'bg-warning/10' : 'bg-raised'
   return (
     <div className="bg-white border border-border rounded-2xl p-4 shadow-sm">
       <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-3 ${bgColor}`}>
@@ -139,20 +167,50 @@ function Section({ title, children, className, titleColor = 'text-muted' }) {
   )
 }
 
-function PaymentRow({ payment, onClick, color }) {
+function PaymentRow({ payment, onClick, color, onConfirm, confirming }) {
+  const [tapped, setTapped] = useState(false)
+
+  function handleConfirm(e) {
+    e.stopPropagation()
+    if (tapped) {
+      onConfirm()
+      setTapped(false)
+    } else {
+      setTapped(true)
+      setTimeout(() => setTapped(false), 3000)
+    }
+  }
+
   return (
-    <button
-      onClick={onClick}
-      className="flex items-center justify-between w-full py-2.5 border-b border-border last:border-0"
-    >
-      <div className="text-left">
-        <p className="text-sm font-semibold text-primary">{payment.student_name}</p>
-        <p className="text-xs text-muted">Vence {fmtDate(payment.due_date)}</p>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className={`text-sm font-bold ${color}`}>{fmtMoney(payment.amount)}</span>
-        <ChevronRight size={14} className="text-muted" />
-      </div>
-    </button>
+    <div className="flex items-center gap-2 py-2.5 border-b border-border last:border-0">
+      <button onClick={onClick} className="flex items-center justify-between flex-1 min-w-0 text-left">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-primary truncate">{payment.student_name}</p>
+          <p className="text-xs text-muted">Vence {fmtDate(payment.due_date)}</p>
+        </div>
+        <div className="flex items-center gap-2 ml-2">
+          <span className={`text-sm font-bold ${color}`}>{fmtMoney(payment.amount)}</span>
+          {!onConfirm && <ChevronRight size={14} className="text-muted" />}
+        </div>
+      </button>
+
+      {onConfirm && (
+        <button
+          onClick={handleConfirm}
+          disabled={confirming}
+          title={tapped ? 'Clique novamente para confirmar' : 'Confirmar pagamento'}
+          className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+            tapped
+              ? 'bg-success text-white'
+              : 'bg-success/10 text-success hover:bg-success/20'
+          }`}
+        >
+          {confirming
+            ? <Loader2 size={15} className="animate-spin" />
+            : <CheckCircle size={15} />
+          }
+        </button>
+      )}
+    </div>
   )
 }

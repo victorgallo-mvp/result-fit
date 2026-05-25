@@ -122,11 +122,14 @@ async def get_dashboard_payments(tenant_id: str, user_id: str) -> dict:
 
     today = date.today()
     in_7_days = today + timedelta(days=7)
+    in_30_days = today + timedelta(days=30)
     first_month = datetime.combine(date(today.year, today.month, 1), datetime.min.time())
     last_month = datetime.combine(today, datetime.max.time())
 
     today_dt = datetime.combine(today, datetime.min.time())
     in_7_days_dt = datetime.combine(in_7_days, datetime.min.time())
+    in_8_days_dt = datetime.combine(today + timedelta(days=8), datetime.min.time())
+    in_30_days_dt = datetime.combine(in_30_days, datetime.min.time())
 
     async def enrich(docs):
         result = []
@@ -143,6 +146,12 @@ async def get_dashboard_payments(tenant_id: str, user_id: str) -> dict:
         "due_date": {"$gte": today_dt, "$lte": in_7_days_dt},
     }).sort("due_date", 1).to_list(length=100)
 
+    vencendo_breve = await db.payments.find({
+        "student_id": {"$in": student_ids},
+        "status": "pending",
+        "due_date": {"$gte": in_8_days_dt, "$lte": in_30_days_dt},
+    }).sort("due_date", 1).to_list(length=100)
+
     vencidas = await db.payments.find({
         "student_id": {"$in": student_ids},
         "status": {"$in": ["pending", "overdue"]},
@@ -157,6 +166,7 @@ async def get_dashboard_payments(tenant_id: str, user_id: str) -> dict:
 
     return {
         "vencendo_7_dias": await enrich(vencendo),
+        "vencendo_em_breve": await enrich(vencendo_breve),
         "vencidas": await enrich(vencidas),
         "pagas_mes": await enrich(pagas_mes),
     }
