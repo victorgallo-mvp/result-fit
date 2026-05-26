@@ -55,7 +55,7 @@ export default function Hoje() {
       </div>
 
       {/* Student list */}
-      <div className="flex-1 px-4 pt-3 space-y-2">
+      <div className="flex-1 px-4 pt-3 pb-4 space-y-2">
         {isLoading && (
           <div className="space-y-2">
             {[1,2,3,4,5].map(i => (
@@ -74,8 +74,9 @@ export default function Hoje() {
           </div>
         )}
 
-        <div className="stagger">
-          {students.map(student => (
+        {/* Pending */}
+        <div className="space-y-2">
+          {students.filter(s => !s.marked).map(student => (
             <StudentCard
               key={student.id}
               student={student}
@@ -84,6 +85,25 @@ export default function Hoje() {
             />
           ))}
         </div>
+
+        {/* Present */}
+        {students.some(s => s.marked) && (
+          <div className="pt-2">
+            <p className="text-xs font-semibold text-muted uppercase tracking-widest px-1 mb-2">
+              Presentes · {students.filter(s => s.marked).length}
+            </p>
+            <div className="space-y-2">
+              {students.filter(s => s.marked).map(student => (
+                <StudentCard
+                  key={student.id}
+                  student={student}
+                  onToggle={() => toggleMutation.mutate({ id: student.id, marked: student.marked })}
+                  onNavigate={e => { e.stopPropagation(); navigate(`/alunos/${student.id}`) }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
     </div>
