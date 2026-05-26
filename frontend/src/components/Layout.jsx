@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Home, Users, CreditCard, BarChart2, MoreHorizontal, X, DollarSign, Settings, BookOpen, LogOut, Dumbbell } from 'lucide-react'
+import { Home, Users, CreditCard, BarChart2, MoreHorizontal, X, DollarSign, Settings, BookOpen, LogOut, ClipboardList } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { BirthdayModal } from './BirthdayModal'
@@ -12,10 +12,11 @@ const mainNav = [
 ]
 
 const moreNav = [
-  { to: '/pagamentos', icon: CreditCard, label: 'Pagamentos'   },
-  { to: '/financeiro', icon: DollarSign, label: 'Financeiro'   },
-  { to: '/planos',     icon: BookOpen,   label: 'Planos'       },
-  { to: '/config',     icon: Settings,   label: 'Configurações' },
+  { to: '/frequencia',  icon: ClipboardList, label: 'Presença'     },
+  { to: '/pagamentos',  icon: CreditCard,    label: 'Pagamentos'   },
+  { to: '/financeiro',  icon: DollarSign,    label: 'Financeiro'   },
+  { to: '/planos',      icon: BookOpen,      label: 'Planos'       },
+  { to: '/config',      icon: Settings,      label: 'Configurações' },
 ]
 
 export function Layout() {

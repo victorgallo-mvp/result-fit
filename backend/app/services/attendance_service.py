@@ -146,6 +146,63 @@ async def get_attendance_stats(student_id: str, tenant_id: str, user_id: str, ye
     return {"expected": expected, "attended": attended, "faltas": faltas, "rate": rate}
 
 
+async def get_month_attendance_list(tenant_id: str, user_id: str, year: int, month: int) -> list:
+    import calendar as cal
+    db = get_db()
+
+    first_day = date(year, month, 1)
+    last_day = date(year, month, cal.monthrange(year, month)[1])
+    first_dt = datetime.combine(first_day, datetime.min.time())
+    last_dt = datetime.combine(last_day, datetime.max.time())
+    today = date.today()
+    cutoff = min(last_day, today)
+
+    students = await db.students.find(
+        {"tenant_id": ObjectId(tenant_id), "assigned_to": ObjectId(user_id), "status": "active"},
+        {"_id": 1, "name": 1, "training_days": 1},
+    ).sort("name", 1).to_list(500)
+
+    if not students:
+        return []
+
+    student_ids = [s["_id"] for s in students]
+    att_docs = await db.attendances.find({
+        "student_id": {"$in": student_ids},
+        "date": {"$gte": first_dt, "$lte": last_dt},
+    }).to_list(10000)
+
+    att_map: dict[object, set] = {}
+    for a in att_docs:
+        sid = a["student_id"]
+        d = a["date"]
+        ds = d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d)[:10]
+        att_map.setdefault(sid, set()).add(ds)
+
+    dow_map = {0: "mon", 1: "tue", 2: "wed", 3: "thu", 4: "fri", 5: "sat", 6: "sun"}
+    result = []
+    for s in students:
+        training_set = set(s.get("training_days", []))
+        attended_set = att_map.get(s["_id"], set())
+
+        expected_dates = []
+        current = first_day
+        while current <= cutoff:
+            if dow_map[current.weekday()] in training_set:
+                expected_dates.append(current.strftime("%Y-%m-%d"))
+            current += timedelta(days=1)
+
+        attended = sum(1 for d in expected_dates if d in attended_set)
+        result.append({
+            "id": str(s["_id"]),
+            "name": s.get("name", ""),
+            "training_days": s.get("training_days", []),
+            "attended_dates": sorted(attended_set),
+            "attended": attended,
+            "expected": len(expected_dates),
+        })
+    return result
+
+
 async def get_student_attendances_month(student_id: str, tenant_id: str, user_id: str, year: int, month: int) -> list:
     db = get_db()
     import calendar

@@ -10,7 +10,8 @@ import AlunoDetalhe  from '@/pages/AlunoDetalhe'
 import Pagamentos    from '@/pages/Pagamentos'
 import Planos        from '@/pages/Planos'
 import Financeiro    from '@/pages/Financeiro'
-import Configuracoes from '@/pages/Configuracoes'
+import Configuracoes  from '@/pages/Configuracoes'
+import FrequenciaMes  from '@/pages/FrequenciaMes'
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="planos"      element={<Planos />} />
             <Route path="financeiro"  element={<Financeiro />} />
             <Route path="config"      element={<Configuracoes />} />
+            <Route path="frequencia"  element={<FrequenciaMes />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
