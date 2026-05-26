@@ -6,24 +6,6 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
-const DOW = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
-
-function getScheduledDays(trainingDays, year, month) {
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  const daysInMonth = new Date(year, month, 0).getDate()
-  const days = []
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dt = new Date(year, month - 1, d)
-    if (trainingDays.includes(DOW[dt.getDay()])) {
-      days.push({
-        dateStr: `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
-        isFuture: dt > today,
-      })
-    }
-  }
-  return days
-}
-
 export default function FrequenciaMes() {
   const today = new Date()
   const [year, setYear]   = useState(today.getFullYear())
@@ -33,9 +15,15 @@ export default function FrequenciaMes() {
   const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1
   const label = format(new Date(year, month - 1, 1), 'MMMM yyyy', { locale: ptBR })
 
-  const { data: students = [], isLoading } = useQuery({
+  const { data: raw = [], isLoading } = useQuery({
     queryKey: ['frequencia-mes', monthStr],
     queryFn: () => attendancesApi.monthList(monthStr),
+  })
+
+  const students = [...raw].sort((a, b) => {
+    const ra = a.expected > 0 ? a.attended / a.expected : 0
+    const rb = b.expected > 0 ? b.attended / b.expected : 0
+    return rb - ra
   })
 
   const prevMonth = () => {
@@ -50,7 +38,7 @@ export default function FrequenciaMes() {
 
   return (
     <div className="px-4 pt-12 pb-6">
-      <h1 className="text-2xl font-extrabold text-primary mb-5">Lista de presença</h1>
+      <h1 className="text-2xl font-extrabold text-primary mb-5">Presença</h1>
 
       {/* Month nav */}
       <div className="flex items-center justify-between bg-white border border-border rounded-2xl px-4 py-3 mb-4 shadow-sm">
@@ -66,7 +54,7 @@ export default function FrequenciaMes() {
       {isLoading && (
         <div className="space-y-2">
           {[1, 2, 3, 4, 5].map(i => (
-            <div key={i} className="h-16 rounded-2xl bg-white border border-border animate-pulse" />
+            <div key={i} className="h-14 rounded-2xl bg-white border border-border animate-pulse" />
           ))}
         </div>
       )}
@@ -77,15 +65,18 @@ export default function FrequenciaMes() {
             <p className="p-6 text-center text-sm text-muted">Nenhum aluno ativo</p>
           )}
           {students.map((s, i) => {
-            const days = getScheduledDays(s.training_days, year, month)
-            const attendedSet = new Set(s.attended_dates)
             const rate = s.expected > 0 ? Math.round(s.attended / s.expected * 100) : 0
+            const rateColor = rate >= 80 ? 'text-accent' : rate >= 60 ? 'text-warning' : 'text-danger'
 
             return (
               <div
                 key={s.id}
-                className={`flex items-center gap-3 px-4 py-3 ${i < students.length - 1 ? 'border-b border-border' : ''}`}
+                className={`flex items-center gap-3 px-4 py-3.5 ${i < students.length - 1 ? 'border-b border-border' : ''}`}
               >
+                {/* Rank */}
+                <span className="text-xs font-bold text-muted w-4 text-center flex-shrink-0">{i + 1}</span>
+
+                {/* Avatar */}
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
                   style={{ backgroundColor: avatarColor(s.name) }}
@@ -93,51 +84,17 @@ export default function FrequenciaMes() {
                   {s.name[0]}
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-primary truncate mb-1.5">{s.name}</p>
-                  <div className="flex gap-1 flex-wrap">
-                    {days.map(({ dateStr, isFuture }) => (
-                      <div
-                        key={dateStr}
-                        className={`w-3 h-3 rounded-sm flex-shrink-0 ${
-                          attendedSet.has(dateStr)
-                            ? 'bg-accent'
-                            : isFuture
-                            ? 'border border-border'
-                            : 'bg-danger/30'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </div>
+                {/* Name */}
+                <p className="flex-1 text-sm font-semibold text-primary truncate">{s.name}</p>
 
-                <div className="text-right flex-shrink-0 ml-2">
-                  <p className="text-sm font-bold text-primary">{s.attended}/{s.expected}</p>
-                  <p className={`text-xs font-semibold ${rate >= 80 ? 'text-accent' : rate >= 60 ? 'text-warning' : 'text-danger'}`}>
-                    {rate}%
-                  </p>
+                {/* Stats */}
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <span className="text-sm text-muted">{s.attended}/{s.expected}</span>
+                  <span className={`text-sm font-bold w-10 text-right ${rateColor}`}>{rate}%</span>
                 </div>
               </div>
             )
           })}
-        </div>
-      )}
-
-      {/* Legend */}
-      {!isLoading && students.length > 0 && (
-        <div className="flex gap-4 mt-4 px-1">
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-accent" />
-            <p className="text-xs text-muted">Presente</p>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-danger/30" />
-            <p className="text-xs text-muted">Faltou</p>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm border border-border" />
-            <p className="text-xs text-muted">Previsto</p>
-          </div>
         </div>
       )}
     </div>
