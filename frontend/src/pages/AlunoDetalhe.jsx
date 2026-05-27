@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { studentsApi } from '@/api/students'
+import { paymentsApi } from '@/api/payments'
 import { plansApi } from '@/api/plans'
 import {
   avatarColor, DAY_LABELS, fmtDate, fmtMoney, getAge,
