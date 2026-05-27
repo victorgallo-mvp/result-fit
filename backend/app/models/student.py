@@ -29,5 +29,3 @@ class StudentUpdate(BaseModel):
     status: Optional[Literal["active", "inactive"]] = None
     notes: Optional[str] = None
     photo_url: Optional[str] = None
-    ultimo_pagamento: Optional[date] = None
-    proximo_pagamento: Optional[date] = None
