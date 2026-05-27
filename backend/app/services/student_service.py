@@ -170,8 +170,9 @@ async def update_student(student_id: str, data: StudentUpdate, tenant_id: str, u
         raise HTTPException(status_code=404, detail="Aluno não encontrado")
 
     updates = data.model_dump(exclude_none=True)
-    if "birthday" in updates and updates["birthday"]:
-        updates["birthday"] = datetime.combine(updates["birthday"], datetime.min.time())
+    for field in ("birthday", "ultimo_pagamento", "proximo_pagamento"):
+        if field in updates and updates[field]:
+            updates[field] = datetime.combine(updates[field], datetime.min.time())
     if "plan_id" in updates:
         updates["plan_id"] = ObjectId(updates["plan_id"])
 
