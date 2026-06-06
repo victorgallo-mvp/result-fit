@@ -91,8 +91,8 @@ async def get_student(student_id: str, tenant_id: str, user_id: str) -> dict:
         "student_id": student["_id"],
         "status": "paid",
         "paid_at": {
-            "$gte": date(today.year, 1, 1),
-            "$lte": today,
+            "$gte": datetime(today.year, 1, 1),
+            "$lte": datetime.combine(today, datetime.max.time()),
         },
     })
     doc["payment_summary"] = {"pending_count": pending, "paid_this_year": paid_year}
@@ -120,6 +120,13 @@ async def create_student(data: StudentCreate, tenant_id: str, user_id: str) -> d
         "photo_url": data.photo_url,
         "created_at": datetime.now(timezone.utc),
     }
+    if data.ultimo_pagamento:
+        ult_dt = datetime.combine(data.ultimo_pagamento, datetime.min.time())
+        prox = calc_proximo(data.ultimo_pagamento, data.due_day)
+        prox_dt = datetime.combine(prox, datetime.min.time())
+        doc["ultimo_pagamento"] = ult_dt
+        doc["proximo_pagamento"] = prox_dt
+
     result = await db.students.insert_one(doc)
     doc["_id"] = result.inserted_id
     return serialize_doc(doc)
