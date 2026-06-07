@@ -16,6 +16,7 @@ class StudentCreate(BaseModel):
     due_day: int
     notes: str = ""
     photo_url: Optional[str] = None
+    ultimo_pagamento: Optional[date] = None
 
 
 class StudentUpdate(BaseModel):
@@ -29,3 +30,4 @@ class StudentUpdate(BaseModel):
     status: Optional[Literal["active", "inactive"]] = None
     notes: Optional[str] = None
     photo_url: Optional[str] = None
+    ultimo_pagamento: Optional[date] = None

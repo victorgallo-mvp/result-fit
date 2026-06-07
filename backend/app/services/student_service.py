@@ -181,6 +181,12 @@ async def update_student(student_id: str, data: StudentUpdate, tenant_id: str, u
         updates["birthday"] = datetime.combine(updates["birthday"], datetime.min.time())
     if "plan_id" in updates:
         updates["plan_id"] = ObjectId(updates["plan_id"])
+    if "ultimo_pagamento" in updates and updates["ultimo_pagamento"]:
+        ult = updates["ultimo_pagamento"]
+        updates["ultimo_pagamento"] = datetime.combine(ult, datetime.min.time())
+        due_day = student.get("due_day", 10)
+        prox = calc_proximo(ult, due_day)
+        updates["proximo_pagamento"] = datetime.combine(prox, datetime.min.time())
 
     await db.students.update_one({"_id": ObjectId(student_id)}, {"$set": updates})
     return await get_student(student_id, tenant_id, user_id)

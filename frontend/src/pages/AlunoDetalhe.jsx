@@ -117,9 +117,9 @@ function InfoTab({ student }) {
     email: student.email ?? '',
     birthday: student.birthday?.slice(0, 10) ?? '',
     plan_id: student.plan?.id ?? '',
-    due_day: String(student.due_day),
     training_days: student.training_days ?? [],
     status: student.status,
+    ultimo_pagamento: student.ultimo_pagamento?.slice(0, 10) ?? '',
   })
 
   const mutation = useMutation({
@@ -144,10 +144,10 @@ function InfoTab({ student }) {
     e.preventDefault()
     mutation.mutate({
       ...form,
-      due_day: parseInt(form.due_day),
       email: form.email || null,
       birthday: form.birthday || null,
       plan_id: form.plan_id || student.plan?.id,
+      ultimo_pagamento: form.ultimo_pagamento || null,
     })
   }
 
@@ -169,8 +169,8 @@ function InfoTab({ student }) {
       </div>
 
       <div className="bg-white border border-border rounded-2xl p-4">
-        <p className="text-xs text-muted font-semibold uppercase tracking-wider mb-1">Vencimento</p>
-        <p className="text-primary font-semibold">Todo dia {student.due_day}</p>
+        <p className="text-xs text-muted font-semibold uppercase tracking-wider mb-1">Próximo vencimento</p>
+        <p className="text-primary font-semibold">{student.proximo_pagamento ? fmtDate(student.proximo_pagamento) : '—'}</p>
       </div>
 
       <Button variant="outline" className="w-full" onClick={() => setEditOpen(true)}>
@@ -215,7 +215,7 @@ function InfoTab({ student }) {
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>Dia de vencimento</Label><Input type="number" min={1} max={31} value={form.due_day} onChange={e => setForm(f=>({...f,due_day:e.target.value}))} /></div>
+            <div><Label>Último pagamento</Label><Input type="date" value={form.ultimo_pagamento} onChange={e => setForm(f=>({...f,ultimo_pagamento:e.target.value}))} /></div>
             <div>
               <Label>Dias de treino</Label>
               <div className="flex gap-1.5 flex-wrap">
