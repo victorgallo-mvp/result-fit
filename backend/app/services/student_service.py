@@ -143,6 +143,16 @@ async def pagar_student(student_id: str, tenant_id: str, user_id: str) -> dict:
         "notes": "",
         "created_at": datetime.now(timezone.utc),
     })
+    await db.financial_transactions.insert_one({
+        "tenant_id": ObjectId(tenant_id),
+        "user_id": ObjectId(user_id),
+        "type": "income",
+        "category": "Mensalidade",
+        "amount": price,
+        "date": today_dt,
+        "description": f"Mensalidade - {student.get('name', '')}",
+        "created_at": datetime.now(timezone.utc),
+    })
     return await get_student(student_id, tenant_id, user_id)
 
 
