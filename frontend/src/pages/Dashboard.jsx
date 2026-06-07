@@ -163,13 +163,13 @@ function PaymentRow({ payment, onClick, color, onConfirm, confirming }) {
         <button
           onClick={(e) => { e.stopPropagation(); onConfirm() }}
           disabled={confirming}
-          title="Confirmar pagamento"
-          className="flex-shrink-0 w-8 h-8 rounded-full bg-success/10 text-success flex items-center justify-center hover:bg-success/20 active:bg-success active:text-white transition-colors"
+          className="flex-shrink-0 px-3 h-8 rounded-lg bg-success text-white text-xs font-bold hover:bg-success/90 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5"
         >
           {confirming
-            ? <Loader2 size={15} className="animate-spin" />
-            : <CheckCircle size={15} />
+            ? <Loader2 size={13} className="animate-spin" />
+            : <CheckCircle size={13} />
           }
+          {confirming ? 'Salvando' : 'Pagar'}
         </button>
       )}
     </div>
