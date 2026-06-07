@@ -69,8 +69,8 @@ export default function Hoje() {
             <div className="w-14 h-14 rounded-full bg-raised border border-border flex items-center justify-center mb-4">
               <Users size={24} className="text-muted" />
             </div>
-            <p className="font-semibold text-primary">Nenhum treino hoje</p>
-            <p className="text-sm text-muted mt-1">Nenhum aluno tem treino programado para hoje</p>
+            <p className="font-semibold text-primary">Nenhum aluno ativo</p>
+            <p className="text-sm text-muted mt-1">Cadastre seu primeiro aluno</p>
           </div>
         )}
 
@@ -131,7 +131,7 @@ function StudentCard({ student, onToggle, onNavigate }) {
           )}
         </div>
         <span className="text-xs text-muted">
-          {student.plan?.name ?? 'Sem plano'} · {student.training_days?.length ?? 0}x/sem
+          {student.plan?.name ?? 'Sem plano'} · {student.weekly_frequency ?? 3}x/sem
         </span>
       </div>
 

@@ -5,7 +5,7 @@ import { studentsApi } from '@/api/students'
 import { paymentsApi } from '@/api/payments'
 import { plansApi } from '@/api/plans'
 import {
-  avatarColor, DAY_LABELS, fmtDate, fmtMoney, getAge,
+  avatarColor, fmtDate, fmtMoney, getAge,
   currentMonthStr, METHOD_LABELS,
 } from '@/lib/utils'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
@@ -19,8 +19,7 @@ import { toast } from 'sonner'
 import { format, getDaysInMonth, getDay } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
-const DAYS = ['mon','tue','wed','thu','fri','sat','sun']
-const WEEKDAY_TO_IDX = { sun:0, mon:1, tue:2, wed:3, thu:4, fri:5, sat:6 }
+const FREQUENCIES = [2, 3, 4, 5, 6]
 
 export default function AlunoDetalhe() {
   const { id } = useParams()
@@ -117,7 +116,7 @@ function InfoTab({ student }) {
     email: student.email ?? '',
     birthday: student.birthday?.slice(0, 10) ?? '',
     plan_id: student.plan?.id ?? '',
-    training_days: student.training_days ?? [],
+    weekly_frequency: student.weekly_frequency ?? 3,
     status: student.status,
     ultimo_pagamento: student.ultimo_pagamento?.slice(0, 10) ?? '',
   })
@@ -133,13 +132,6 @@ function InfoTab({ student }) {
     onError: err => toast.error(err.response?.data?.detail || 'Erro ao salvar'),
   })
 
-  const toggleDay = (d) => setForm(f => ({
-    ...f,
-    training_days: f.training_days.includes(d)
-      ? f.training_days.filter(x => x !== d)
-      : [...f.training_days, d],
-  }))
-
   const handleSubmit = (e) => {
     e.preventDefault()
     mutation.mutate({
@@ -148,6 +140,7 @@ function InfoTab({ student }) {
       birthday: form.birthday || null,
       plan_id: form.plan_id || student.plan?.id,
       ultimo_pagamento: form.ultimo_pagamento || null,
+      weekly_frequency: form.weekly_frequency,
     })
   }
 
@@ -158,14 +151,8 @@ function InfoTab({ student }) {
       <InfoRow icon={Calendar} label="Nascimento" value={student.birthday ? `${fmtDate(student.birthday)} (${getAge(student.birthday)} anos)` : '—'} />
 
       <div className="bg-white border border-border rounded-2xl p-4">
-        <p className="text-xs text-muted font-semibold uppercase tracking-wider mb-2">Dias de treino</p>
-        <div className="flex gap-1.5 flex-wrap">
-          {(student.training_days ?? []).map(d => (
-            <span key={d} className="px-2.5 py-1 rounded-lg bg-accent/10 text-accent text-xs font-bold">
-              {DAY_LABELS[d]}
-            </span>
-          ))}
-        </div>
+        <p className="text-xs text-muted font-semibold uppercase tracking-wider mb-1">Frequência semanal</p>
+        <p className="text-primary font-semibold">{student.weekly_frequency ?? 3}x por semana</p>
       </div>
 
       <div className="bg-white border border-border rounded-2xl p-4">
@@ -217,12 +204,12 @@ function InfoTab({ student }) {
             </div>
             <div><Label>Último pagamento</Label><Input type="date" value={form.ultimo_pagamento} onChange={e => setForm(f=>({...f,ultimo_pagamento:e.target.value}))} /></div>
             <div>
-              <Label>Dias de treino</Label>
+              <Label>Frequência semanal</Label>
               <div className="flex gap-1.5 flex-wrap">
-                {DAYS.map(d => (
-                  <button type="button" key={d} onClick={() => toggleDay(d)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${form.training_days.includes(d) ? 'bg-accent text-white border-accent' : 'bg-raised border-border text-muted'}`}>
-                    {DAY_LABELS[d]}
+                {FREQUENCIES.map(f => (
+                  <button type="button" key={f} onClick={() => setForm(fm=>({...fm,weekly_frequency:f}))}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold border transition-all ${form.weekly_frequency === f ? 'bg-accent text-white border-accent' : 'bg-raised border-border text-muted'}`}>
+                    {f}x
                   </button>
                 ))}
               </div>
@@ -297,7 +284,6 @@ function FrequenciaTab({ student }) {
   const daysInMonth = getDaysInMonth(new Date(year, month - 1))
   const firstDow = getDay(new Date(year, month - 1, 1)) // 0=Sun
 
-  const trainingSet = new Set((student.training_days ?? []).map(d => WEEKDAY_TO_IDX[d]))
   const label = format(new Date(year, month - 1, 1), 'MMMM yyyy', { locale: ptBR })
 
   return (
@@ -351,22 +337,16 @@ function FrequenciaTab({ student }) {
             const day = i + 1
             const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`
             const isFuture = new Date(year, month-1, day) > today
-            const dowIdx = (firstDow + i) % 7
-            const isTraining = trainingSet.has(dowIdx)
             const attended = attendedDays.has(dateStr)
             const isToday = dateStr === format(today, 'yyyy-MM-dd')
-            const missed = isTraining && !attended && !isFuture
 
             return (
               <div
                 key={day}
                 className={`
                   aspect-square flex items-center justify-center rounded-lg text-xs font-semibold mx-0.5
-                  ${attended ? 'bg-accent text-white' : ''}
-                  ${missed   ? 'bg-danger/15 text-danger' : ''}
-                  ${!isTraining && !attended ? 'text-muted/40' : ''}
-                  ${isFuture && isTraining ? 'text-muted border border-border' : ''}
-                  ${isToday  ? 'ring-2 ring-accent/60' : ''}
+                  ${attended ? 'bg-accent text-white' : isFuture ? 'text-muted/30' : 'text-muted/50'}
+                  ${isToday ? 'ring-2 ring-accent/60' : ''}
                 `}
               >
                 {day}
@@ -378,8 +358,6 @@ function FrequenciaTab({ student }) {
         {/* Legend */}
         <div className="flex gap-4 mt-3 pt-3 border-t border-border">
           <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-accent" /><p className="text-xs text-muted">Presente</p></div>
-          <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-danger/20" /><p className="text-xs text-muted">Faltou</p></div>
-          <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm border border-border" /><p className="text-xs text-muted">Previsto</p></div>
         </div>
       </div>
     </div>

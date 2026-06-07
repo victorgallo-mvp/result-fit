@@ -7,14 +7,10 @@ from app.models.student import StudentCreate, StudentUpdate
 from app.models.common import serialize_doc
 
 
-def calc_proximo(from_date: date, due_day: int) -> date:
-    """Next occurrence of due_day strictly after from_date."""
-    year, month = from_date.year, from_date.month
-    if from_date.day < due_day:
-        return date(year, month, min(due_day, calendar.monthrange(year, month)[1]))
-    month = month % 12 + 1
-    year = year if month > 1 else year + 1
-    return date(year, month, min(due_day, calendar.monthrange(year, month)[1]))
+def add_one_month(d: date) -> date:
+    m = d.month % 12 + 1
+    y = d.year if m > 1 else d.year + 1
+    return date(y, m, min(d.day, calendar.monthrange(y, m)[1]))
 
 
 def _student_filter(tenant_id: str, user_id: str) -> dict:
@@ -78,24 +74,8 @@ async def get_student(student_id: str, tenant_id: str, user_id: str) -> dict:
         raise HTTPException(status_code=404, detail="Aluno não encontrado")
 
     doc = serialize_doc(student)
-
     plan = await db.plans.find_one({"_id": student.get("plan_id")})
     doc["plan"] = serialize_doc(plan) if plan else None
-
-    today = date.today()
-    pending = await db.payments.count_documents({
-        "student_id": student["_id"],
-        "status": {"$in": ["pending", "overdue"]},
-    })
-    paid_year = await db.payments.count_documents({
-        "student_id": student["_id"],
-        "status": "paid",
-        "paid_at": {
-            "$gte": datetime(today.year, 1, 1),
-            "$lte": datetime.combine(today, datetime.max.time()),
-        },
-    })
-    doc["payment_summary"] = {"pending_count": pending, "paid_this_year": paid_year}
     return doc
 
 
@@ -112,18 +92,17 @@ async def create_student(data: StudentCreate, tenant_id: str, user_id: str) -> d
         "phone": data.phone,
         "email": data.email,
         "birthday": datetime.combine(data.birthday, datetime.min.time()) if data.birthday else None,
-        "training_days": data.training_days,
+        "weekly_frequency": data.weekly_frequency,
         "plan_id": ObjectId(data.plan_id),
-        "due_day": data.due_day,
         "status": "active",
         "notes": data.notes,
         "photo_url": data.photo_url,
         "created_at": datetime.now(timezone.utc),
     }
+
     if data.ultimo_pagamento:
         ult_dt = datetime.combine(data.ultimo_pagamento, datetime.min.time())
-        prox = calc_proximo(data.ultimo_pagamento, data.due_day)
-        prox_dt = datetime.combine(prox, datetime.min.time())
+        prox_dt = datetime.combine(add_one_month(data.ultimo_pagamento), datetime.min.time())
         doc["ultimo_pagamento"] = ult_dt
         doc["proximo_pagamento"] = prox_dt
 
@@ -145,7 +124,7 @@ async def pagar_student(student_id: str, tenant_id: str, user_id: str) -> dict:
     price = plan.get("price", 0) if plan else 0
 
     today = date.today()
-    proximo = calc_proximo(today, student.get("due_day", 10))
+    proximo = add_one_month(today)
     today_dt = datetime.combine(today, datetime.min.time())
     proximo_dt = datetime.combine(proximo, datetime.min.time())
 
@@ -184,9 +163,7 @@ async def update_student(student_id: str, data: StudentUpdate, tenant_id: str, u
     if "ultimo_pagamento" in updates and updates["ultimo_pagamento"]:
         ult = updates["ultimo_pagamento"]
         updates["ultimo_pagamento"] = datetime.combine(ult, datetime.min.time())
-        due_day = student.get("due_day", 10)
-        prox = calc_proximo(ult, due_day)
-        updates["proximo_pagamento"] = datetime.combine(prox, datetime.min.time())
+        updates["proximo_pagamento"] = datetime.combine(add_one_month(ult), datetime.min.time())
 
     await db.students.update_one({"_id": ObjectId(student_id)}, {"$set": updates})
     return await get_student(student_id, tenant_id, user_id)
@@ -244,7 +221,6 @@ async def get_birthdays_month(tenant_id: str, user_id: str, year: int, month: in
         {"$addFields": {
             "birth_month": {"$month": "$birthday"},
             "birth_day": {"$dayOfMonth": "$birthday"},
-            "birth_year": {"$year": "$birthday"},
         }},
         {"$match": {"birth_month": month}},
         {"$sort": {"birth_day": 1}},
@@ -254,7 +230,6 @@ async def get_birthdays_month(tenant_id: str, user_id: str, year: int, month: in
     for s in docs:
         doc = serialize_doc(s)
         if s.get("birthday"):
-            age = year - s["birthday"].year
-            doc["age_completing"] = age
+            doc["age_completing"] = year - s["birthday"].year
         result.append(doc)
     return result

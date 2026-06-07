@@ -18,7 +18,7 @@ async def get_dashboard(tenant_id: str, user_id: str) -> dict:
 
     students = await db.students.find(
         {"tenant_id": tid, "assigned_to": uid, "status": "active"},
-        {"_id": 1, "name": 1, "training_days": 1, "proximo_pagamento": 1, "plan_id": 1, "birthday": 1},
+        {"_id": 1, "name": 1, "weekly_frequency": 1, "proximo_pagamento": 1, "plan_id": 1, "birthday": 1},
     ).to_list(length=500)
 
     student_ids = [s["_id"] for s in students]
@@ -44,17 +44,12 @@ async def get_dashboard(tenant_id: str, user_id: str) -> dict:
     )
     plan_price_map = {p["_id"]: p.get("price", 0) for p in plans_docs}
 
-    # frequência: usa training_days já carregados
-    day_map = {0: "mon", 1: "tue", 2: "wed", 3: "thu", 4: "fri", 5: "sat", 6: "sun"}
     first_day = date(today.year, today.month, 1)
-    total_expected = 0
-    for s in students:
-        training = set(s.get("training_days") or [])
-        current = first_day
-        while current <= today:
-            if day_map[current.weekday()] in training:
-                total_expected += 1
-            current += timedelta(days=1)
+    days_so_far = (today - first_day).days + 1
+    total_expected = sum(
+        round(days_so_far / 7 * s.get("weekly_frequency", 3))
+        for s in students
+    )
     taxa = round(attended_count / total_expected * 100, 1) if total_expected > 0 else 0.0
 
     def shape(s):

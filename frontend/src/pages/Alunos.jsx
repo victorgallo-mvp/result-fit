@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { studentsApi } from '@/api/students'
 import { plansApi } from '@/api/plans'
-import { avatarColor, DAY_LABELS, fmtDate, fmtMoney } from '@/lib/utils'
+import { avatarColor, fmtDate, fmtMoney } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,7 +12,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Search, Plus, ChevronRight, Users, CheckCircle, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
-const DAYS = ['mon','tue','wed','thu','fri','sat','sun']
+const FREQUENCIES = [2, 3, 4, 5, 6]
 
 export default function Alunos() {
   const navigate = useNavigate()
@@ -123,7 +123,7 @@ function StudentCard({ student: s, onClick, onConfirm, confirming }) {
         <div className="flex-1 min-w-0">
           <p className="font-bold text-primary truncate">{s.name}</p>
           <p className="text-xs text-muted mt-0.5 truncate">
-            {s.plan?.name ?? 'Sem plano'} · {s.training_days?.map(d => DAY_LABELS[d]).join(', ')}
+            {s.plan?.name ?? 'Sem plano'} · {s.weekly_frequency ?? 3}x/sem
           </p>
           {np && (
             <p className={`text-xs font-semibold mt-0.5 ${isOverdue ? 'text-danger' : isPending ? 'text-warning' : 'text-muted'}`}>
@@ -159,7 +159,7 @@ function CreateStudentDialog({ open, onClose }) {
   const qc = useQueryClient()
   const [form, setForm] = useState({
     name: '', phone: '', email: '', birthday: '',
-    training_days: [], plan_id: '', due_day: '10', notes: '',
+    weekly_frequency: 3, plan_id: '', notes: '', ultimo_pagamento: '',
   })
 
   const { data: plans = [] } = useQuery({ queryKey: ['plans'], queryFn: plansApi.list })
@@ -170,28 +170,21 @@ function CreateStudentDialog({ open, onClose }) {
       qc.invalidateQueries({ queryKey: ['students'] })
       toast.success('Aluno cadastrado!')
       onClose()
-      setForm({ name:'',phone:'',email:'',birthday:'',training_days:[],plan_id:'',due_day:'10',notes:'' })
+      setForm({ name:'',phone:'',email:'',birthday:'',weekly_frequency:3,plan_id:'',notes:'',ultimo_pagamento:'' })
     },
     onError: err => toast.error(err.response?.data?.detail || 'Erro ao cadastrar'),
   })
 
-  const toggleDay = (d) => setForm(f => ({
-    ...f,
-    training_days: f.training_days.includes(d)
-      ? f.training_days.filter(x => x !== d)
-      : [...f.training_days, d],
-  }))
-
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (!form.name || !form.phone || !form.plan_id || form.training_days.length === 0) {
-      return toast.error('Preencha nome, telefone, plano e dias de treino')
+    if (!form.name || !form.phone || !form.plan_id) {
+      return toast.error('Preencha nome, telefone e plano')
     }
     mutation.mutate({
       ...form,
-      due_day: parseInt(form.due_day),
       email: form.email || null,
       birthday: form.birthday || null,
+      ultimo_pagamento: form.ultimo_pagamento || null,
     })
   }
 
@@ -225,23 +218,23 @@ function CreateStudentDialog({ open, onClose }) {
             </Select>
           </div>
           <div>
-            <Label>Dia de vencimento</Label>
-            <Input type="number" min={1} max={31} value={form.due_day} onChange={e => setForm(f => ({...f, due_day: e.target.value}))} />
-          </div>
-          <div>
-            <Label>Dias de treino *</Label>
+            <Label>Frequência semanal *</Label>
             <div className="flex gap-1.5 flex-wrap">
-              {DAYS.map(d => (
+              {FREQUENCIES.map(f => (
                 <button
                   type="button"
-                  key={d}
-                  onClick={() => toggleDay(d)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${form.training_days.includes(d) ? 'bg-accent text-white border-accent' : 'bg-raised border-border text-muted hover:text-primary'}`}
+                  key={f}
+                  onClick={() => setForm(fm => ({...fm, weekly_frequency: f}))}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold border transition-all ${form.weekly_frequency === f ? 'bg-accent text-white border-accent' : 'bg-raised border-border text-muted hover:text-primary'}`}
                 >
-                  {DAY_LABELS[d]}
+                  {f}x
                 </button>
               ))}
             </div>
+          </div>
+          <div>
+            <Label>Último pagamento</Label>
+            <Input type="date" value={form.ultimo_pagamento} onChange={e => setForm(f => ({...f, ultimo_pagamento: e.target.value}))} />
           </div>
           <Button type="submit" className="w-full" disabled={mutation.isPending}>
             {mutation.isPending ? 'Salvando...' : 'Cadastrar aluno'}

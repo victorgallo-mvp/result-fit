@@ -4,8 +4,6 @@ from fastapi import HTTPException
 from app.database import get_db
 from app.models.common import serialize_doc
 
-DAY_MAP = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
-
 
 async def mark_attendance(student_id: str, mark_date: date, tenant_id: str, user_id: str) -> dict:
     db = get_db()
@@ -60,16 +58,11 @@ async def get_today_list(tenant_id: str, user_id: str) -> list:
     db = get_db()
     today = date.today()
     today_dt = datetime.combine(today, datetime.min.time())
-    today_weekday = today.weekday()  # 0=mon
-
-    weekday_to_str = {v: k for k, v in DAY_MAP.items()}
-    today_str = weekday_to_str[today_weekday]
 
     students = await db.students.find({
         "tenant_id": ObjectId(tenant_id),
         "assigned_to": ObjectId(user_id),
         "status": "active",
-        "training_days": today_str,
     }).sort("name", 1).to_list(length=500)
 
     if not students:
@@ -122,16 +115,9 @@ async def get_attendance_stats(student_id: str, tenant_id: str, user_id: str, ye
     if last_day > today:
         last_day = today
 
-    training_days = set(student.get("training_days", []))
-    expected_dates = []
-    current = first_day
-    day_str = {0: "mon", 1: "tue", 2: "wed", 3: "thu", 4: "fri", 5: "sat", 6: "sun"}
-    while current <= last_day:
-        if day_str[current.weekday()] in training_days:
-            expected_dates.append(current)
-        current = current + timedelta(days=1)
-
-    expected = len(expected_dates)
+    days_in_period = (last_day - first_day).days + 1
+    weekly_frequency = student.get("weekly_frequency", 3)
+    expected = round(days_in_period / 7 * weekly_frequency)
 
     start_dt = datetime.combine(first_day, datetime.min.time())
     end_dt = datetime.combine(last_day, datetime.min.time())
@@ -141,7 +127,7 @@ async def get_attendance_stats(student_id: str, tenant_id: str, user_id: str, ye
     })
 
     faltas = max(0, expected - attended)
-    rate = round((attended / expected * 100), 1) if expected > 0 else 0.0
+    rate = round(attended / expected * 100, 1) if expected > 0 else 0.0
 
     return {"expected": expected, "attended": attended, "faltas": faltas, "rate": rate}
 
@@ -159,7 +145,7 @@ async def get_month_attendance_list(tenant_id: str, user_id: str, year: int, mon
 
     students = await db.students.find(
         {"tenant_id": ObjectId(tenant_id), "assigned_to": ObjectId(user_id), "status": "active"},
-        {"_id": 1, "name": 1, "training_days": 1},
+        {"_id": 1, "name": 1, "weekly_frequency": 1},
     ).sort("name", 1).to_list(500)
 
     if not students:
@@ -171,34 +157,27 @@ async def get_month_attendance_list(tenant_id: str, user_id: str, year: int, mon
         "date": {"$gte": first_dt, "$lte": last_dt},
     }).to_list(10000)
 
-    att_map: dict[object, set] = {}
+    att_map: dict = {}
     for a in att_docs:
         sid = a["student_id"]
         d = a["date"]
         ds = d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d)[:10]
         att_map.setdefault(sid, set()).add(ds)
 
-    dow_map = {0: "mon", 1: "tue", 2: "wed", 3: "thu", 4: "fri", 5: "sat", 6: "sun"}
+    days_in_period = (cutoff - first_day).days + 1
+
     result = []
     for s in students:
-        training_set = set(s.get("training_days", []))
+        weekly_frequency = s.get("weekly_frequency", 3)
+        expected = round(days_in_period / 7 * weekly_frequency)
         attended_set = att_map.get(s["_id"], set())
-
-        expected_dates = []
-        current = first_day
-        while current <= cutoff:
-            if dow_map[current.weekday()] in training_set:
-                expected_dates.append(current.strftime("%Y-%m-%d"))
-            current += timedelta(days=1)
-
-        attended = sum(1 for d in expected_dates if d in attended_set)
+        attended = len(attended_set)
         result.append({
             "id": str(s["_id"]),
             "name": s.get("name", ""),
-            "training_days": s.get("training_days", []),
-            "attended_dates": sorted(attended_set),
+            "weekly_frequency": weekly_frequency,
             "attended": attended,
-            "expected": len(expected_dates),
+            "expected": expected,
         })
     return result
 

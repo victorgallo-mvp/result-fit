@@ -3,17 +3,13 @@ from typing import Literal, Optional
 from datetime import date
 
 
-TRAINING_DAYS = Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-
-
 class StudentCreate(BaseModel):
     name: str
     phone: str
     email: Optional[EmailStr] = None
     birthday: Optional[date] = None
-    training_days: list[TRAINING_DAYS] = []
+    weekly_frequency: int = 3
     plan_id: str
-    due_day: int
     notes: str = ""
     photo_url: Optional[str] = None
     ultimo_pagamento: Optional[date] = None
@@ -24,9 +20,8 @@ class StudentUpdate(BaseModel):
     phone: Optional[str] = None
     email: Optional[EmailStr] = None
     birthday: Optional[date] = None
-    training_days: Optional[list[TRAINING_DAYS]] = None
+    weekly_frequency: Optional[int] = None
     plan_id: Optional[str] = None
-    due_day: Optional[int] = None
     status: Optional[Literal["active", "inactive"]] = None
     notes: Optional[str] = None
     photo_url: Optional[str] = None

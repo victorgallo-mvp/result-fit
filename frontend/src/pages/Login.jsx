@@ -34,7 +34,7 @@ export default function Login() {
         <div className="w-14 h-14 rounded-2xl bg-accent flex items-center justify-center mb-5 shadow-sm">
           <Dumbbell size={28} className="text-white" />
         </div>
-        <h1 className="text-2xl font-extrabold text-primary tracking-tight">Personal Pro</h1>
+        <h1 className="text-2xl font-extrabold text-primary tracking-tight">ResultFit</h1>
         <p className="text-muted text-sm mt-1">Gestão para personal trainers</p>
       </div>
 
@@ -77,7 +77,7 @@ export default function Login() {
         </Button>
       </form>
 
-      <p className="mt-10 text-xs text-muted">Personal Pro &copy; {new Date().getFullYear()}</p>
+      <p className="mt-10 text-xs text-muted">ResultFit &copy; {new Date().getFullYear()}</p>
     </div>
   )
 }

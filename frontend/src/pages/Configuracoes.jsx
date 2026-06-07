@@ -128,7 +128,7 @@ export default function Configuracoes() {
 
       {/* App info */}
       <div className="mt-8 text-center">
-        <p className="text-xs text-muted">Personal Pro · v0.1.0</p>
+        <p className="text-xs text-muted">ResultFit · v0.1.0</p>
         <p className="text-xs text-muted mt-1">{user?.email}</p>
       </div>
     </div>
