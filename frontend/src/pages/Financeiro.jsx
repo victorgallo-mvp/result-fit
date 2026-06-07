@@ -131,6 +131,7 @@ export default function Financeiro() {
       </div>
 
       <AddTransactionDialog
+        key={`${addType}-${String(addOpen)}`}
         open={addOpen}
         onClose={() => setAddOpen(false)}
         type={addType}
@@ -166,10 +167,9 @@ function AddTransactionDialog({ open, onClose, type, month }) {
   const mutation = useMutation({
     mutationFn: financialApi.create,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['financial', month] })
-      toast.success(type === 'income' ? 'Entrada registrada!' : 'Saída registrada!')
+      qc.invalidateQueries({ queryKey: ['financial'] })
+      toast.success(form.type === 'income' ? 'Entrada registrada!' : 'Saída registrada!')
       onClose()
-      setForm({ type, category: categories[0], amount: '', date: `${month}-01`, description: '' })
     },
     onError: () => toast.error('Erro ao salvar'),
   })

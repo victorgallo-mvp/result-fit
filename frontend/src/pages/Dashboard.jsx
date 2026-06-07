@@ -77,6 +77,8 @@ export default function Dashboard() {
               payment={p}
               onClick={() => navigate(`/alunos/${p.id}`)}
               color="text-warning"
+              onConfirm={() => confirmMutation.mutate(p.id)}
+              confirming={confirmMutation.isPending && confirmMutation.variables === p.id}
             />
           ))}
         </Section>
