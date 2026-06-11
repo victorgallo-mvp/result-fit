@@ -1,10 +1,12 @@
 import { createContext, useContext, useState, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { authApi } from '@/api/auth'
 import { toast } from 'sonner'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
+  const queryClient = useQueryClient()
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem('user')) } catch { return null }
   })
@@ -12,7 +14,6 @@ export function AuthProvider({ children }) {
   const login = useCallback(async (email, password) => {
     const data = await authApi.login(email, password)
     localStorage.setItem('token', data.access_token)
-    // strip password_hash from stored user
     const { password_hash, ...safeUser } = data.user
     localStorage.setItem('user', JSON.stringify(safeUser))
     setUser(safeUser)
@@ -23,7 +24,8 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     setUser(null)
-  }, [])
+    queryClient.clear()
+  }, [queryClient])
 
   const refreshUser = useCallback(async () => {
     try {
