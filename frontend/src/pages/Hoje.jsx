@@ -7,7 +7,7 @@ import { Check, ChevronRight, Users, Cake } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 
 const TODAY = todayStr()
 
@@ -48,6 +48,40 @@ export default function Hoje() {
   const filtered = filterLetter
     ? students.filter(s => s.name[0].toUpperCase() === filterLetter)
     : students
+
+  const stripRef = useRef(null)
+  const touchState = useRef({ startLetter: null, prevFilter: null, moved: false })
+
+  const letterFromTouch = useCallback((touch) => {
+    const el = stripRef.current
+    if (!el) return null
+    const rect = el.getBoundingClientRect()
+    const y = touch.clientY - rect.top
+    const idx = Math.floor(y / (rect.height / letters.length))
+    return letters[Math.max(0, Math.min(letters.length - 1, idx))] ?? null
+  }, [letters])
+
+  const handleTouchStart = useCallback((e) => {
+    e.preventDefault()
+    const letter = letterFromTouch(e.touches[0])
+    touchState.current = { startLetter: letter, prevFilter: filterLetter, moved: false }
+    setFilterLetter(letter)
+  }, [letterFromTouch, filterLetter])
+
+  const handleTouchMove = useCallback((e) => {
+    e.preventDefault()
+    const letter = letterFromTouch(e.touches[0])
+    if (letter) {
+      touchState.current.moved = true
+      setFilterLetter(letter)
+    }
+  }, [letterFromTouch])
+
+  const handleTouchEnd = useCallback(() => {
+    const { startLetter, prevFilter, moved } = touchState.current
+    // tap (no drag) on already-active letter → deselect
+    if (!moved && startLetter === prevFilter) setFilterLetter(null)
+  }, [])
 
   return (
     <div className="flex flex-col min-h-full">
@@ -116,25 +150,22 @@ export default function Hoje() {
 
         {/* Letter index */}
         {letters.length > 1 && (
-          <div className="flex flex-col items-center pt-4 pr-1 w-6 gap-0.5 flex-shrink-0">
-            {filterLetter && (
-              <button
-                onClick={() => setFilterLetter(null)}
-                className="text-[10px] font-bold text-accent w-5 h-4 flex items-center justify-center mb-1"
-              >
-                ✕
-              </button>
-            )}
+          <div
+            ref={stripRef}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            className="flex flex-col items-center justify-around py-4 pr-1 w-6 flex-shrink-0 select-none touch-none"
+          >
             {letters.map(l => (
-              <button
+              <span
                 key={l}
-                onClick={() => setFilterLetter(filterLetter === l ? null : l)}
-                className={`text-[11px] font-bold w-5 h-4 flex items-center justify-center rounded transition-colors ${
-                  filterLetter === l ? 'text-accent' : 'text-muted hover:text-primary'
+                className={`text-[11px] font-bold w-5 text-center leading-none transition-colors ${
+                  filterLetter === l ? 'text-accent scale-125' : 'text-muted'
                 }`}
               >
                 {l}
-              </button>
+              </span>
             ))}
           </div>
         )}
