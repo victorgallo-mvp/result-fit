@@ -13,6 +13,8 @@ class StudentCreate(BaseModel):
     notes: str = ""
     photo_url: Optional[str] = None
     ultimo_pagamento: Optional[date] = None
+    ultima_avaliacao: Optional[date] = None
+    avaliacao_frequencia: int = 3
 
 
 class StudentUpdate(BaseModel):
@@ -26,3 +28,5 @@ class StudentUpdate(BaseModel):
     notes: Optional[str] = None
     photo_url: Optional[str] = None
     ultimo_pagamento: Optional[date] = None
+    ultima_avaliacao: Optional[date] = None
+    avaliacao_frequencia: Optional[int] = None

@@ -15,6 +15,7 @@ export default function Hoje() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const [filterLetter, setFilterLetter] = useState(null)
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['today'],
     queryFn: attendancesApi.today,
@@ -43,6 +44,11 @@ export default function Hoje() {
   const today  = new Date()
   const dayLabel = format(today, "EEEE, d 'de' MMMM", { locale: ptBR })
 
+  const letters = [...new Set(students.map(s => s.name[0].toUpperCase()))].sort()
+  const filtered = filterLetter
+    ? students.filter(s => s.name[0].toUpperCase() === filterLetter)
+    : students
+
   return (
     <div className="flex flex-col min-h-full">
       {/* Header */}
@@ -54,54 +60,82 @@ export default function Hoje() {
         </div>
       </div>
 
-      {/* Student list */}
-      <div className="flex-1 px-4 pt-3 pb-4 space-y-2">
-        {isLoading && (
-          <div className="space-y-2">
-            {[1,2,3,4,5].map(i => (
-              <div key={i} className="h-20 rounded-2xl bg-white border border-border animate-pulse" />
-            ))}
-          </div>
-        )}
-
-        {!isLoading && students.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-14 h-14 rounded-full bg-raised border border-border flex items-center justify-center mb-4">
-              <Users size={24} className="text-muted" />
-            </div>
-            <p className="font-semibold text-primary">Nenhum aluno ativo</p>
-            <p className="text-sm text-muted mt-1">Cadastre seu primeiro aluno</p>
-          </div>
-        )}
-
-        {/* Pending */}
-        <div className="space-y-2">
-          {students.filter(s => !s.marked).map(student => (
-            <StudentCard
-              key={student.id}
-              student={student}
-              onToggle={() => toggleMutation.mutate({ id: student.id, marked: student.marked })}
-              onNavigate={e => { e.stopPropagation(); navigate(`/alunos/${student.id}`) }}
-            />
-          ))}
-        </div>
-
-        {/* Present */}
-        {students.some(s => s.marked) && (
-          <div className="pt-2">
-            <p className="text-xs font-semibold text-muted uppercase tracking-widest px-1 mb-2">
-              Presentes · {students.filter(s => s.marked).length}
-            </p>
+      {/* Content + letter index */}
+      <div className="flex-1 flex">
+        {/* Student list */}
+        <div className="flex-1 px-4 pt-3 pb-4 space-y-2 min-w-0">
+          {isLoading && (
             <div className="space-y-2">
-              {students.filter(s => s.marked).map(student => (
-                <StudentCard
-                  key={student.id}
-                  student={student}
-                  onToggle={() => toggleMutation.mutate({ id: student.id, marked: student.marked })}
-                  onNavigate={e => { e.stopPropagation(); navigate(`/alunos/${student.id}`) }}
-                />
+              {[1,2,3,4,5].map(i => (
+                <div key={i} className="h-20 rounded-2xl bg-white border border-border animate-pulse" />
               ))}
             </div>
+          )}
+
+          {!isLoading && students.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="w-14 h-14 rounded-full bg-raised border border-border flex items-center justify-center mb-4">
+                <Users size={24} className="text-muted" />
+              </div>
+              <p className="font-semibold text-primary">Nenhum aluno ativo</p>
+              <p className="text-sm text-muted mt-1">Cadastre seu primeiro aluno</p>
+            </div>
+          )}
+
+          {/* Pending */}
+          <div className="space-y-2">
+            {filtered.filter(s => !s.marked).map(student => (
+              <StudentCard
+                key={student.id}
+                student={student}
+                onToggle={() => toggleMutation.mutate({ id: student.id, marked: student.marked })}
+                onNavigate={e => { e.stopPropagation(); navigate(`/alunos/${student.id}`) }}
+              />
+            ))}
+          </div>
+
+          {/* Present */}
+          {filtered.some(s => s.marked) && (
+            <div className="pt-2">
+              <p className="text-xs font-semibold text-muted uppercase tracking-widest px-1 mb-2">
+                Presentes · {filtered.filter(s => s.marked).length}
+              </p>
+              <div className="space-y-2">
+                {filtered.filter(s => s.marked).map(student => (
+                  <StudentCard
+                    key={student.id}
+                    student={student}
+                    onToggle={() => toggleMutation.mutate({ id: student.id, marked: student.marked })}
+                    onNavigate={e => { e.stopPropagation(); navigate(`/alunos/${student.id}`) }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Letter index */}
+        {letters.length > 1 && (
+          <div className="flex flex-col items-center pt-4 pr-1 w-6 gap-0.5 flex-shrink-0">
+            {filterLetter && (
+              <button
+                onClick={() => setFilterLetter(null)}
+                className="text-[10px] font-bold text-accent w-5 h-4 flex items-center justify-center mb-1"
+              >
+                ✕
+              </button>
+            )}
+            {letters.map(l => (
+              <button
+                key={l}
+                onClick={() => setFilterLetter(filterLetter === l ? null : l)}
+                className={`text-[11px] font-bold w-5 h-4 flex items-center justify-center rounded transition-colors ${
+                  filterLetter === l ? 'text-accent' : 'text-muted hover:text-primary'
+                }`}
+              >
+                {l}
+              </button>
+            ))}
           </div>
         )}
       </div>

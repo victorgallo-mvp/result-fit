@@ -160,6 +160,7 @@ function CreateStudentDialog({ open, onClose }) {
   const [form, setForm] = useState({
     name: '', phone: '', email: '', birthday: '',
     weekly_frequency: 3, plan_id: '', notes: '', ultimo_pagamento: '',
+    ultima_avaliacao: '', avaliacao_frequencia: 3,
   })
 
   const { data: plans = [] } = useQuery({ queryKey: ['plans'], queryFn: plansApi.list })
@@ -170,7 +171,7 @@ function CreateStudentDialog({ open, onClose }) {
       qc.invalidateQueries({ queryKey: ['students'] })
       toast.success('Aluno cadastrado!')
       onClose()
-      setForm({ name:'',phone:'',email:'',birthday:'',weekly_frequency:3,plan_id:'',notes:'',ultimo_pagamento:'' })
+      setForm({ name:'',phone:'',email:'',birthday:'',weekly_frequency:3,plan_id:'',notes:'',ultimo_pagamento:'',ultima_avaliacao:'',avaliacao_frequencia:3 })
     },
     onError: err => toast.error(err.response?.data?.detail || 'Erro ao cadastrar'),
   })
@@ -185,6 +186,8 @@ function CreateStudentDialog({ open, onClose }) {
       email: form.email || null,
       birthday: form.birthday || null,
       ultimo_pagamento: form.ultimo_pagamento || null,
+      ultima_avaliacao: form.ultima_avaliacao || null,
+      avaliacao_frequencia: form.avaliacao_frequencia,
     })
   }
 
@@ -235,6 +238,21 @@ function CreateStudentDialog({ open, onClose }) {
           <div>
             <Label>Último pagamento</Label>
             <Input type="date" value={form.ultimo_pagamento} onChange={e => setForm(f => ({...f, ultimo_pagamento: e.target.value}))} />
+          </div>
+          <div>
+            <Label>Última avaliação</Label>
+            <Input type="date" value={form.ultima_avaliacao} onChange={e => setForm(f => ({...f, ultima_avaliacao: e.target.value}))} />
+          </div>
+          <div>
+            <Label>Frequência de avaliação (meses)</Label>
+            <div className="flex gap-1.5 flex-wrap">
+              {[1,2,3,4,6].map(n => (
+                <button type="button" key={n} onClick={() => setForm(fm => ({...fm, avaliacao_frequencia: n}))}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold border transition-all ${form.avaliacao_frequencia === n ? 'bg-accent text-white border-accent' : 'bg-raised border-border text-muted hover:text-primary'}`}>
+                  {n}m
+                </button>
+              ))}
+            </div>
           </div>
           <Button type="submit" className="w-full" disabled={mutation.isPending}>
             {mutation.isPending ? 'Salvando...' : 'Cadastrar aluno'}

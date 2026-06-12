@@ -48,6 +48,12 @@ async def pagar_student(student_id: str, user=Depends(get_current_user)):
     return await student_service.pagar_student(student_id, tid, uid)
 
 
+@router.post("/{student_id}/avaliar")
+async def avaliar_student(student_id: str, user=Depends(get_current_user)):
+    tid, uid = _ctx(user)
+    return await student_service.avaliar_student(student_id, tid, uid)
+
+
 @router.get("/{student_id}")
 async def get_student(student_id: str, user=Depends(get_current_user)):
     tid, uid = _ctx(user)

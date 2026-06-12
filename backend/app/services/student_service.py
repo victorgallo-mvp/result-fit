@@ -13,6 +13,12 @@ def add_one_month(d: date) -> date:
     return date(y, m, min(d.day, calendar.monthrange(y, m)[1]))
 
 
+def add_months(d: date, n: int) -> date:
+    for _ in range(n):
+        d = add_one_month(d)
+    return d
+
+
 def _student_filter(tenant_id: str, user_id: str) -> dict:
     return {
         "tenant_id": ObjectId(tenant_id),
@@ -106,6 +112,12 @@ async def create_student(data: StudentCreate, tenant_id: str, user_id: str) -> d
         doc["ultimo_pagamento"] = ult_dt
         doc["proximo_pagamento"] = prox_dt
 
+    if data.ultima_avaliacao:
+        freq = data.avaliacao_frequencia or 3
+        doc["ultima_avaliacao"] = datetime.combine(data.ultima_avaliacao, datetime.min.time())
+        doc["proxima_avaliacao"] = datetime.combine(add_months(data.ultima_avaliacao, freq), datetime.min.time())
+    doc["avaliacao_frequencia"] = data.avaliacao_frequencia or 3
+
     result = await db.students.insert_one(doc)
     doc["_id"] = result.inserted_id
     return serialize_doc(doc)
@@ -175,7 +187,42 @@ async def update_student(student_id: str, data: StudentUpdate, tenant_id: str, u
         updates["ultimo_pagamento"] = datetime.combine(ult, datetime.min.time())
         updates["proximo_pagamento"] = datetime.combine(add_one_month(ult), datetime.min.time())
 
+    if "ultima_avaliacao" in updates and updates["ultima_avaliacao"]:
+        ua = updates["ultima_avaliacao"]
+        freq = updates.get("avaliacao_frequencia") or student.get("avaliacao_frequencia", 3)
+        updates["ultima_avaliacao"] = datetime.combine(ua, datetime.min.time())
+        updates["proxima_avaliacao"] = datetime.combine(add_months(ua, freq), datetime.min.time())
+    elif "avaliacao_frequencia" in updates:
+        ua_raw = student.get("ultima_avaliacao")
+        if ua_raw:
+            ua_date = ua_raw.date() if hasattr(ua_raw, "date") else ua_raw
+            updates["proxima_avaliacao"] = datetime.combine(
+                add_months(ua_date, updates["avaliacao_frequencia"]), datetime.min.time()
+            )
+
     await db.students.update_one({"_id": ObjectId(student_id)}, {"$set": updates})
+    return await get_student(student_id, tenant_id, user_id)
+
+
+async def avaliar_student(student_id: str, tenant_id: str, user_id: str) -> dict:
+    db = get_db()
+    student = await db.students.find_one({
+        "_id": ObjectId(student_id),
+        **_student_filter(tenant_id, user_id),
+    })
+    if not student:
+        raise HTTPException(status_code=404, detail="Aluno não encontrado")
+
+    freq = student.get("avaliacao_frequencia", 3)
+    today = date.today()
+    proxima = add_months(today, freq)
+    await db.students.update_one(
+        {"_id": ObjectId(student_id)},
+        {"$set": {
+            "ultima_avaliacao": datetime.combine(today, datetime.min.time()),
+            "proxima_avaliacao": datetime.combine(proxima, datetime.min.time()),
+        }},
+    )
     return await get_student(student_id, tenant_id, user_id)
 
 

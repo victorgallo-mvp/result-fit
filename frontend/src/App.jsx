@@ -12,6 +12,7 @@ import Planos        from '@/pages/Planos'
 import Financeiro    from '@/pages/Financeiro'
 import Configuracoes  from '@/pages/Configuracoes'
 import FrequenciaMes  from '@/pages/FrequenciaMes'
+import Avaliacoes     from '@/pages/Avaliacoes'
 
 export default function App() {
   return (
@@ -35,6 +36,7 @@ export default function App() {
             <Route path="financeiro"  element={<Financeiro />} />
             <Route path="config"      element={<Configuracoes />} />
             <Route path="frequencia"  element={<FrequenciaMes />} />
+            <Route path="avaliacoes"  element={<Avaliacoes />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

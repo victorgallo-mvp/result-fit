@@ -119,6 +119,8 @@ function InfoTab({ student }) {
     weekly_frequency: student.weekly_frequency ?? 3,
     status: student.status,
     ultimo_pagamento: student.ultimo_pagamento?.slice(0, 10) ?? '',
+    ultima_avaliacao: student.ultima_avaliacao?.slice(0, 10) ?? '',
+    avaliacao_frequencia: student.avaliacao_frequencia ?? 3,
   })
 
   const mutation = useMutation({
@@ -140,7 +142,9 @@ function InfoTab({ student }) {
       birthday: form.birthday || null,
       plan_id: form.plan_id || student.plan?.id,
       ultimo_pagamento: form.ultimo_pagamento || null,
+      ultima_avaliacao: form.ultima_avaliacao || null,
       weekly_frequency: form.weekly_frequency,
+      avaliacao_frequencia: form.avaliacao_frequencia,
     })
   }
 
@@ -158,6 +162,14 @@ function InfoTab({ student }) {
       <div className="bg-white border border-border rounded-2xl p-4">
         <p className="text-xs text-muted font-semibold uppercase tracking-wider mb-1">Próximo vencimento</p>
         <p className="text-primary font-semibold">{student.proximo_pagamento ? fmtDate(student.proximo_pagamento) : '—'}</p>
+      </div>
+
+      <div className="bg-white border border-border rounded-2xl p-4">
+        <p className="text-xs text-muted font-semibold uppercase tracking-wider mb-1">Próxima avaliação</p>
+        <p className="text-primary font-semibold">{student.proxima_avaliacao ? fmtDate(student.proxima_avaliacao) : '—'}</p>
+        {student.ultima_avaliacao && (
+          <p className="text-xs text-muted mt-0.5">Última: {fmtDate(student.ultima_avaliacao)}</p>
+        )}
       </div>
 
       <Button variant="outline" className="w-full" onClick={() => setEditOpen(true)}>
@@ -203,6 +215,18 @@ function InfoTab({ student }) {
               </Select>
             </div>
             <div><Label>Último pagamento</Label><Input type="date" value={form.ultimo_pagamento} onChange={e => setForm(f=>({...f,ultimo_pagamento:e.target.value}))} /></div>
+            <div><Label>Última avaliação</Label><Input type="date" value={form.ultima_avaliacao} onChange={e => setForm(f=>({...f,ultima_avaliacao:e.target.value}))} /></div>
+            <div>
+              <Label>Frequência de avaliação (meses)</Label>
+              <div className="flex gap-1.5 flex-wrap">
+                {[1,2,3,4,6].map(n => (
+                  <button type="button" key={n} onClick={() => setForm(fm=>({...fm,avaliacao_frequencia:n}))}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold border transition-all ${form.avaliacao_frequencia === n ? 'bg-accent text-white border-accent' : 'bg-raised border-border text-muted'}`}>
+                    {n}m
+                  </button>
+                ))}
+              </div>
+            </div>
             <div>
               <Label>Frequência semanal</Label>
               <div className="flex gap-1.5 flex-wrap">
