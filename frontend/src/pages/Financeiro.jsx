@@ -9,6 +9,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { TrendingUp, TrendingDown, Minus, Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
+import { BackButton } from '@/components/BackButton'
 
 const INCOME_CATEGORIES  = ['Mensalidade','Avaliação','Consultoria','Outros']
 const EXPENSE_CATEGORIES = ['Aluguel','Material','Uniforme','Curso','Transporte','Outros']
@@ -45,6 +46,7 @@ export default function Financeiro() {
 
   return (
     <div className="px-4 pt-12 pb-6">
+      <BackButton />
       {/* Header + month nav */}
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-2xl font-extrabold text-primary">Financeiro</h1>

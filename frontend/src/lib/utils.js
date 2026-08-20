@@ -44,6 +44,35 @@ export function todayStr() {
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`
 }
 
+/** Quanto este aluno paga por mês: o valor combinado com ele, ou o do plano. */
+export function valorMensal(student) {
+  if (student?.preco_personalizado != null) return student.preco_personalizado
+  return student?.plan?.price ?? 0
+}
+
+/* ── Telefone ──────────────────────────────────────────────────────────
+   Guardamos só os dígitos. A máscara é de exibição; o link de WhatsApp
+   monta o número a partir dos dígitos, nunca do texto formatado. */
+
+export function phoneDigits(value = '') {
+  return String(value).replace(/\D/g, '')
+}
+
+/** Formata progressivamente enquanto digita: (37) 99141-0188 */
+export function maskPhone(value = '') {
+  const d = phoneDigits(value).slice(0, 11)
+  if (d.length <= 2)  return d
+  if (d.length <= 6)  return `(${d.slice(0,2)}) ${d.slice(2)}`
+  if (d.length <= 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`
+  return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`
+}
+
+/** Celular com DDD tem 11 dígitos; fixo tem 10. Menos que isso não disca. */
+export function isValidPhone(value) {
+  const len = phoneDigits(value).length
+  return len === 10 || len === 11
+}
+
 export function getAge(birthdayIso) {
   if (!birthdayIso) return null
   const d = birthdayIso.slice(0, 10)

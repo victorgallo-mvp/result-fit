@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom'
 import { paymentsApi } from '@/api/payments'
 import { studentsApi } from '@/api/students'
 import { fmtDate, fmtMoney, STATUS_PAYMENT, METHOD_LABELS } from '@/lib/utils'
+import { WhatsAppButton } from '@/components/WhatsAppButton'
+import { BackButton } from '@/components/BackButton'
+import { msgMensalidade } from '@/lib/whatsapp'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -54,6 +57,7 @@ export default function Pagamentos() {
 
   return (
     <div className="px-4 pt-12 pb-6">
+      <BackButton />
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-2xl font-extrabold text-primary">Pagamentos</h1>
@@ -110,12 +114,27 @@ export default function Pagamentos() {
                   <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${st.color}`}>{st.label}</span>
                 </div>
                 {p.status !== 'paid' && (
-                  <button
-                    onClick={(e) => openMarkPaid(p, e)}
-                    className="w-9 h-9 rounded-xl bg-accent/10 text-accent flex items-center justify-center hover:bg-accent/20 transition-colors"
-                  >
-                    <Check size={16} strokeWidth={3} />
-                  </button>
+                  <>
+                    <WhatsAppButton
+                      phone={p.student_phone}
+                      size={15}
+                      className="w-9 h-9"
+                      title={p.status === 'overdue' ? 'Cobrar no WhatsApp' : 'Lembrar no WhatsApp'}
+                      message={msgMensalidade({
+                        name: p.student_name,
+                        amount: p.amount,
+                        due_date: p.due_date,
+                        vencida: p.status === 'overdue',
+                      })}
+                    />
+                    <button
+                      onClick={(e) => openMarkPaid(p, e)}
+                      title="Marcar como pago"
+                      className="w-9 h-9 rounded-xl bg-accent/10 text-accent flex items-center justify-center hover:bg-accent/20 transition-colors"
+                    >
+                      <Check size={16} strokeWidth={3} />
+                    </button>
+                  </>
                 )}
                 {p.status === 'paid' && (
                   <ChevronRight size={16} className="text-muted" />
@@ -199,7 +218,8 @@ function AddPaymentDialog({ open, onClose }) {
             <Label>Aluno *</Label>
             <Select value={form.student_id} onValueChange={v => {
               const s = students.find(x => x.id === v)
-              setForm(f => ({ ...f, student_id: v, amount: s?.plan?.price ?? f.amount }))
+              // valor combinado com o aluno vence o preço do plano
+              setForm(f => ({ ...f, student_id: v, amount: s?.preco_personalizado ?? s?.plan?.price ?? f.amount }))
             }}>
               <SelectTrigger><SelectValue placeholder="Selecionar aluno" /></SelectTrigger>
               <SelectContent>

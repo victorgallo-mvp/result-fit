@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { studentsApi } from '@/api/students'
 import { avatarColor, getAge, todayStr } from '@/lib/utils'
+import { WhatsAppButton } from '@/components/WhatsAppButton'
+import { msgAniversario } from '@/lib/whatsapp'
 import { X, ChevronRight, Cake } from 'lucide-react'
 
 const STORAGE_KEY = `birthday_alert_shown_${todayStr()}`
@@ -32,25 +34,34 @@ export function BirthdayModal() {
 
   if (!open || !data) return null
 
-  const StudentRow = ({ student, onClick }) => (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-raised transition-colors text-left"
-    >
-      <div
-        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-        style={{ backgroundColor: avatarColor(student.name) }}
-      >
-        {student.name[0]}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="font-semibold text-primary text-sm">{student.name}</p>
-        {student.birthday && (
-          <p className="text-xs text-muted">{getAge(student.birthday)} anos</p>
-        )}
-      </div>
+  // só quem faz aniversário hoje ganha o botão — parabenizar um dia antes é pior que não parabenizar
+  const StudentRow = ({ student, onClick, canGreet }) => (
+    <div className="flex items-center gap-2 w-full p-3 rounded-xl hover:bg-raised transition-colors">
+      <button onClick={onClick} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+        <div
+          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+          style={{ backgroundColor: avatarColor(student.name) }}
+        >
+          {student.name[0]}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-primary text-sm truncate">{student.name}</p>
+          {student.birthday && (
+            <p className="text-xs text-muted">{getAge(student.birthday)} anos</p>
+          )}
+        </div>
+      </button>
+      {canGreet && (
+        <WhatsAppButton
+          phone={student.phone}
+          label="Parabenizar"
+          size={15}
+          title="Parabenizar no WhatsApp"
+          message={msgAniversario(student)}
+        />
+      )}
       <ChevronRight size={16} className="text-muted flex-shrink-0" />
-    </button>
+    </div>
   )
 
   return (
@@ -80,6 +91,7 @@ export function BirthdayModal() {
                 <StudentRow
                   key={s.id}
                   student={s}
+                  canGreet
                   onClick={() => { close(); navigate(`/alunos/${s.id}`) }}
                 />
               ))}

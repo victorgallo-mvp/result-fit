@@ -9,6 +9,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { avatarColor } from '@/lib/utils'
 import { User, Lock, Sun, Sunset } from 'lucide-react'
 import { toast } from 'sonner'
+import { BackButton } from '@/components/BackButton'
 
 const SHIFT_LABELS = { morning: 'Manhã', afternoon: 'Tarde', full: 'Integral' }
 
@@ -50,6 +51,7 @@ export default function Configuracoes() {
 
   return (
     <div className="px-4 pt-12 pb-10">
+      <BackButton />
       <h1 className="text-2xl font-extrabold text-primary mb-6">Configurações</h1>
 
       {/* Avatar */}

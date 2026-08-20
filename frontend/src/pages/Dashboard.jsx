@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { dashboardApi } from '@/api/dashboard'
 import { studentsApi } from '@/api/students'
 import { fmtMoney, fmtDate, avatarColor } from '@/lib/utils'
+import { WhatsAppButton } from '@/components/WhatsAppButton'
+import { msgMensalidade, msgAniversario } from '@/lib/whatsapp'
 import { Clock, AlertCircle, ChevronRight, CheckCircle, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -61,6 +63,7 @@ export default function Dashboard() {
               payment={p}
               onClick={() => navigate(`/alunos/${p.id}`)}
               color="text-danger"
+              vencida
               onConfirm={() => confirmMutation.mutate(p.id)}
               confirming={confirmMutation.isPending && confirmMutation.variables === p.id}
             />
@@ -88,23 +91,31 @@ export default function Dashboard() {
       {data?.aniversariantes?.length > 0 && (
         <Section title="Aniversariantes do mês" className="mb-3">
           {data.aniversariantes.map(s => (
-            <button
-              key={s.id}
-              onClick={() => navigate(`/alunos/${s.id}`)}
-              className="flex items-center gap-3 w-full py-2.5 border-b border-border last:border-0"
-            >
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
-                style={{ backgroundColor: avatarColor(s.name) }}
+            <div key={s.id} className="flex items-center gap-2 py-2.5 border-b border-border last:border-0">
+              <button
+                onClick={() => navigate(`/alunos/${s.id}`)}
+                className="flex items-center gap-3 flex-1 min-w-0"
               >
-                {s.name[0]}
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-sm font-semibold text-primary">{s.name}</p>
-                <p className="text-xs text-muted">Dia {s.birthday?.slice(8, 10)} · {s.age_completing} anos</p>
-              </div>
-              <ChevronRight size={14} className="text-muted" />
-            </button>
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
+                  style={{ backgroundColor: avatarColor(s.name) }}
+                >
+                  {s.name[0]}
+                </div>
+                <div className="flex-1 text-left min-w-0">
+                  <p className="text-sm font-semibold text-primary truncate">{s.name}</p>
+                  <p className="text-xs text-muted">Dia {s.birthday?.slice(8, 10)} · {s.age_completing} anos</p>
+                </div>
+              </button>
+              <WhatsAppButton
+                phone={s.phone}
+                size={14}
+                className="w-8 h-8 rounded-lg"
+                title="Parabenizar no WhatsApp"
+                message={msgAniversario(s)}
+              />
+              <ChevronRight size={14} className="text-muted flex-shrink-0" />
+            </div>
           ))}
         </Section>
       )}
@@ -145,19 +156,32 @@ function Section({ title, children, className, titleColor = 'text-muted' }) {
   )
 }
 
-function PaymentRow({ payment, onClick, color, onConfirm, confirming }) {
+function PaymentRow({ payment, onClick, color, onConfirm, confirming, vencida }) {
   return (
-    <div className="flex items-center gap-2 py-2.5 border-b border-border last:border-0">
+    <div className="flex items-center gap-1.5 py-2.5 border-b border-border last:border-0">
       <button onClick={onClick} className="flex items-center justify-between flex-1 min-w-0 text-left">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-primary truncate">{payment.student_name}</p>
-          <p className="text-xs text-muted">Vence {fmtDate(payment.due_date)}</p>
+          <p className="text-xs text-muted">{vencida ? 'Venceu' : 'Vence'} {fmtDate(payment.due_date)}</p>
         </div>
         <div className="flex items-center gap-2 ml-2">
           <span className={`text-sm font-bold ${color}`}>{fmtMoney(payment.amount)}</span>
           {!onConfirm && <ChevronRight size={14} className="text-muted" />}
         </div>
       </button>
+
+      <WhatsAppButton
+        phone={payment.student_phone}
+        size={14}
+        className="w-8 h-8 rounded-lg"
+        title={vencida ? 'Cobrar no WhatsApp' : 'Lembrar no WhatsApp'}
+        message={msgMensalidade({
+          name: payment.student_name,
+          amount: payment.amount,
+          due_date: payment.due_date,
+          vencida,
+        })}
+      />
 
       {onConfirm && (
         <button

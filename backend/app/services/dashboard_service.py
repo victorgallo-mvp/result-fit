@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime, date, timedelta
 from app.database import get_db
 from app.models.common import serialize_doc
+from app.services.student_service import valor_mensal
 
 
 async def get_dashboard() -> dict:
@@ -15,7 +16,9 @@ async def get_dashboard() -> dict:
 
     students = await db.students.find(
         {"status": "active"},
-        {"_id": 1, "name": 1, "weekly_frequency": 1, "proximo_pagamento": 1, "plan_id": 1, "birthday": 1},
+        # phone entra pro botão de WhatsApp dos cards de cobrança e aniversário
+        {"_id": 1, "name": 1, "phone": 1, "weekly_frequency": 1, "proximo_pagamento": 1,
+         "plan_id": 1, "birthday": 1, "preco_personalizado": 1},
     ).to_list(length=500)
 
     student_ids = [s["_id"] for s in students]
@@ -39,7 +42,7 @@ async def get_dashboard() -> dict:
             "date": {"$gte": first_month_dt, "$lte": last_dt},
         }),
     )
-    plan_price_map = {p["_id"]: p.get("price", 0) for p in plans_docs}
+    plan_map = {p["_id"]: p for p in plans_docs}
 
     first_day = date(today.year, today.month, 1)
     days_so_far = (today - first_day).days + 1
@@ -55,8 +58,9 @@ async def get_dashboard() -> dict:
             "id": str(s["_id"]),
             "student_id": str(s["_id"]),
             "student_name": s.get("name", ""),
+            "student_phone": s.get("phone"),
             "due_date": pp.strftime("%Y-%m-%d") if pp else None,
-            "amount": plan_price_map.get(s.get("plan_id"), 0),
+            "amount": valor_mensal(s, plan_map.get(s.get("plan_id"))),
         }
 
     vencidas = sorted(

@@ -7,6 +7,14 @@ from app.models.student import StudentCreate, StudentUpdate
 from app.models.common import serialize_doc
 
 
+def valor_mensal(student: dict, plan: dict | None) -> float:
+    """Valor que este aluno paga: o combinado com ele, ou o preço do plano."""
+    personalizado = student.get("preco_personalizado")
+    if personalizado is not None:
+        return personalizado
+    return plan.get("price", 0) if plan else 0
+
+
 def add_one_month(d: date) -> date:
     m = d.month % 12 + 1
     y = d.year if m > 1 else d.year + 1
@@ -51,10 +59,9 @@ async def list_students(status_filter: str | None, search: str | None) -> list:
                 st = "pending"
             else:
                 st = "upcoming"
-            plan = plans.get(s.get("plan_id"))
             doc["next_payment"] = {
                 "due_date": pp.strftime("%Y-%m-%d"),
-                "amount": plan.get("price", 0) if plan else 0,
+                "amount": valor_mensal(s, plans.get(s.get("plan_id"))),
                 "status": st,
             }
         else:
@@ -88,6 +95,7 @@ async def create_student(data: StudentCreate) -> dict:
         "birthday": datetime.combine(data.birthday, datetime.min.time()) if data.birthday else None,
         "weekly_frequency": data.weekly_frequency,
         "plan_id": ObjectId(data.plan_id),
+        "preco_personalizado": data.preco_personalizado,
         "status": "active",
         "notes": data.notes,
         "photo_url": data.photo_url,
@@ -118,7 +126,7 @@ async def pagar_student(student_id: str) -> dict:
         raise HTTPException(status_code=404, detail="Aluno não encontrado")
 
     plan = await db.plans.find_one({"_id": student.get("plan_id")})
-    price = plan.get("price", 0) if plan else 0
+    price = valor_mensal(student, plan)
 
     today = date.today()
     proximo = add_one_month(today)
@@ -179,7 +187,14 @@ async def update_student(student_id: str, data: StudentUpdate) -> dict:
                 add_months(ua_date, updates["avaliacao_frequencia"]), datetime.min.time()
             )
 
-    await db.students.update_one({"_id": ObjectId(student_id)}, {"$set": updates})
+    # mandar preco_personalizado: null é como se limpa o valor combinado e volta pro
+    # preço do plano — exclude_none sozinho engoliria isso e o valor antigo ficaria preso
+    ops = {"$set": updates} if updates else {}
+    if "preco_personalizado" in data.model_fields_set and data.preco_personalizado is None:
+        ops["$unset"] = {"preco_personalizado": ""}
+
+    if ops:
+        await db.students.update_one({"_id": ObjectId(student_id)}, ops)
     return await get_student(student_id)
 
 

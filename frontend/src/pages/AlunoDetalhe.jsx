@@ -6,15 +6,17 @@ import { paymentsApi } from '@/api/payments'
 import { plansApi } from '@/api/plans'
 import {
   avatarColor, fmtDate, fmtMoney, getAge,
-  currentMonthStr, METHOD_LABELS,
+  currentMonthStr, METHOD_LABELS, maskPhone, isValidPhone, phoneDigits, valorMensal,
 } from '@/lib/utils'
+import { WhatsAppButton } from '@/components/WhatsAppButton'
+import { msgMensalidade } from '@/lib/whatsapp'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { ArrowLeft, Phone, Mail, Calendar, Edit2, Check, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Phone, Mail, Calendar, Edit2, Check, ChevronLeft, ChevronRight, UserMinus, UserCheck, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { format, getDaysInMonth, getDay } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -112,10 +114,11 @@ function InfoTab({ student }) {
 
   const [form, setForm] = useState({
     name: student.name,
-    phone: student.phone,
+    phone: maskPhone(student.phone ?? ''),
     email: student.email ?? '',
     birthday: student.birthday?.slice(0, 10) ?? '',
     plan_id: student.plan?.id ?? '',
+    preco_personalizado: student.preco_personalizado ?? '',
     weekly_frequency: student.weekly_frequency ?? 3,
     status: student.status,
     ultimo_pagamento: student.ultimo_pagamento?.slice(0, 10) ?? '',
@@ -136,11 +139,15 @@ function InfoTab({ student }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    if (!isValidPhone(form.phone)) return toast.error('Telefone incompleto — precisa de DDD + número')
     mutation.mutate({
       ...form,
+      phone: phoneDigits(form.phone),
       email: form.email || null,
       birthday: form.birthday || null,
       plan_id: form.plan_id || student.plan?.id,
+      // vazio = volta a seguir o preço do plano
+      preco_personalizado: form.preco_personalizado === '' ? null : Number(form.preco_personalizado),
       ultimo_pagamento: form.ultimo_pagamento || null,
       ultima_avaliacao: form.ultima_avaliacao || null,
       weekly_frequency: form.weekly_frequency,
@@ -150,13 +157,32 @@ function InfoTab({ student }) {
 
   return (
     <div className="space-y-3 pb-6">
-      <InfoRow icon={Phone} label="Telefone" value={student.phone} />
+      <InfoRow
+        icon={Phone}
+        label="Telefone"
+        value={student.phone ? maskPhone(student.phone) : '—'}
+        action={
+          student.phone && (
+            <WhatsAppButton phone={student.phone} message="" title="Abrir conversa no WhatsApp" />
+          )
+        }
+      />
       <InfoRow icon={Mail}  label="Email"    value={student.email ?? '—'} />
       <InfoRow icon={Calendar} label="Nascimento" value={student.birthday ? `${fmtDate(student.birthday)} (${getAge(student.birthday)} anos)` : '—'} />
 
       <div className="bg-white border border-border rounded-2xl p-4">
         <p className="text-xs text-muted font-semibold uppercase tracking-wider mb-1">Frequência semanal</p>
         <p className="text-primary font-semibold">{student.weekly_frequency ?? 3}x por semana</p>
+      </div>
+
+      <div className="bg-white border border-border rounded-2xl p-4">
+        <p className="text-xs text-muted font-semibold uppercase tracking-wider mb-1">Mensalidade</p>
+        <p className="text-primary font-semibold">{fmtMoney(valorMensal(student))}</p>
+        <p className="text-xs text-muted mt-0.5">
+          {student.preco_personalizado != null
+            ? `Valor combinado · plano ${student.plan?.name ?? '—'} custa ${fmtMoney(student.plan?.price ?? 0)}`
+            : `Preço do plano ${student.plan?.name ?? '—'}`}
+        </p>
       </div>
 
       <div className="bg-white border border-border rounded-2xl p-4">
@@ -198,11 +224,22 @@ function InfoTab({ student }) {
         )}
       </div>
 
+      <EncerrarAluno student={student} />
+
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent title="Editar aluno">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div><Label>Nome</Label><Input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} /></div>
-            <div><Label>Telefone</Label><Input value={form.phone} onChange={e => setForm(f=>({...f,phone:e.target.value}))} /></div>
+            <div>
+              <Label>Telefone</Label>
+              <Input
+                type="tel"
+                inputMode="numeric"
+                value={form.phone}
+                onChange={e => setForm(f=>({...f, phone: maskPhone(e.target.value)}))}
+                placeholder="(11) 99999-9999"
+              />
+            </div>
             <div><Label>Email</Label><Input type="email" value={form.email} onChange={e => setForm(f=>({...f,email:e.target.value}))} /></div>
             <div><Label>Nascimento</Label><Input type="date" value={form.birthday} onChange={e => setForm(f=>({...f,birthday:e.target.value}))} /></div>
             <div>
@@ -210,9 +247,23 @@ function InfoTab({ student }) {
               <Select value={form.plan_id} onValueChange={v => setForm(f=>({...f,plan_id:v}))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {plans.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                  {plans.map(p => <SelectItem key={p.id} value={p.id}>{p.name} — {fmtMoney(p.price)}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>Valor personalizado (R$)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                inputMode="decimal"
+                value={form.preco_personalizado}
+                onChange={e => setForm(f=>({...f, preco_personalizado: e.target.value}))}
+                placeholder="Vazio = preço do plano"
+              />
+              <p className="text-xs text-muted mt-1">
+                Só preencha se este aluno paga diferente do plano. Reajuste no plano não mexe em quem tem valor próprio.
+              </p>
             </div>
             <div><Label>Último pagamento</Label><Input type="date" value={form.ultimo_pagamento} onChange={e => setForm(f=>({...f,ultimo_pagamento:e.target.value}))} /></div>
             <div><Label>Última avaliação</Label><Input type="date" value={form.ultima_avaliacao} onChange={e => setForm(f=>({...f,ultima_avaliacao:e.target.value}))} /></div>
@@ -258,16 +309,105 @@ function InfoTab({ student }) {
   )
 }
 
-function InfoRow({ icon: Icon, label, value }) {
+/* ── Encerrar / reativar ──────────────────────────────────────────────
+   Encerrar tira o aluno das listas e do Hoje, mas preserva presenças,
+   pagamentos e o histórico financeiro — dá pra reativar a qualquer momento. */
+function EncerrarAluno({ student }) {
+  const qc = useQueryClient()
+  const navigate = useNavigate()
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const inativo = student.status === 'inactive'
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['student', student.id] })
+    qc.invalidateQueries({ queryKey: ['students'] })
+    qc.invalidateQueries({ queryKey: ['today'] })
+    qc.invalidateQueries({ queryKey: ['dashboard'] })
+    qc.invalidateQueries({ queryKey: ['avaliacoes'] })
+  }
+
+  const encerrar = useMutation({
+    mutationFn: () => studentsApi.remove(student.id),
+    onSuccess: () => {
+      invalidate()
+      setConfirmOpen(false)
+      toast.success('Aluno encerrado')
+      navigate('/alunos')
+    },
+    onError: err => toast.error(err.response?.data?.detail || 'Erro ao encerrar'),
+  })
+
+  const reativar = useMutation({
+    mutationFn: () => studentsApi.update(student.id, { status: 'active' }),
+    onSuccess: () => {
+      invalidate()
+      toast.success('Aluno reativado!')
+    },
+    onError: err => toast.error(err.response?.data?.detail || 'Erro ao reativar'),
+  })
+
+  if (inativo) {
+    return (
+      <Button
+        variant="outline"
+        className="w-full"
+        disabled={reativar.isPending}
+        onClick={() => reativar.mutate()}
+      >
+        <UserCheck size={16} /> {reativar.isPending ? 'Reativando...' : 'Reativar aluno'}
+      </Button>
+    )
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setConfirmOpen(true)}
+        className="w-full h-11 rounded-xl border border-danger/30 text-danger font-semibold text-sm flex items-center justify-center gap-2 hover:bg-danger/5 active:scale-[0.99] transition-all"
+      >
+        <UserMinus size={16} /> Encerrar aluno
+      </button>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent title="Encerrar aluno">
+          <div className="space-y-4">
+            <div className="flex gap-3 p-3 rounded-xl bg-warning/10">
+              <AlertTriangle size={18} className="text-warning flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-primary">
+                <strong>{student.name}</strong> sai da lista de hoje, do dashboard e das cobranças.
+                O histórico de presenças e pagamentos continua guardado, e dá pra reativar depois.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setConfirmOpen(false)}>
+                Cancelar
+              </Button>
+              <button
+                onClick={() => encerrar.mutate()}
+                disabled={encerrar.isPending}
+                className="flex-1 h-11 rounded-xl bg-danger text-white font-semibold text-sm disabled:opacity-50 active:scale-[0.98] transition-transform"
+              >
+                {encerrar.isPending ? 'Encerrando...' : 'Encerrar'}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+function InfoRow({ icon: Icon, label, value, action }) {
   return (
     <div className="bg-white border border-border rounded-2xl p-4 flex items-center gap-3">
       <div className="w-9 h-9 rounded-xl bg-raised flex items-center justify-center flex-shrink-0">
         <Icon size={16} className="text-muted" />
       </div>
-      <div>
+      <div className="flex-1 min-w-0">
         <p className="text-xs text-muted">{label}</p>
-        <p className="text-sm font-semibold text-primary">{value}</p>
+        <p className="text-sm font-semibold text-primary truncate">{value}</p>
       </div>
+      {action}
     </div>
   )
 }
@@ -433,13 +573,27 @@ function PagamentosTab({ student }) {
       </div>
 
       {showConfirm && (
-        <Button
-          className="w-full"
-          disabled={pagarMutation.isPending}
-          onClick={() => pagarMutation.mutate()}
-        >
-          {pagarMutation.isPending ? 'Confirmando...' : `Confirmar mensalidade · ${fmtMoney(student.plan?.price ?? 0)}`}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            className="flex-1"
+            disabled={pagarMutation.isPending}
+            onClick={() => pagarMutation.mutate()}
+          >
+            {pagarMutation.isPending ? 'Confirmando...' : `Confirmar mensalidade · ${fmtMoney(valorMensal(student))}`}
+          </Button>
+          <WhatsAppButton
+            phone={student.phone}
+            size={17}
+            className="w-11 h-11 rounded-xl"
+            title={isOverdue ? 'Cobrar no WhatsApp' : 'Lembrar no WhatsApp'}
+            message={msgMensalidade({
+              name: student.name,
+              amount: valorMensal(student),
+              due_date: pp,
+              vencida: isOverdue,
+            })}
+          />
+        </div>
       )}
 
       {/* Payment history */}
@@ -469,7 +623,7 @@ function PagamentosTab({ student }) {
         open={addOpen}
         onClose={() => setAddOpen(false)}
         studentId={student.id}
-        planPrice={student.plan?.price}
+        planPrice={valorMensal(student)}
       />
     </div>
   )

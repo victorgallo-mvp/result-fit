@@ -5,6 +5,7 @@ import { avatarColor } from '@/lib/utils'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { BackButton } from '@/components/BackButton'
 
 export default function FrequenciaMes() {
   const today = new Date()
@@ -38,6 +39,7 @@ export default function FrequenciaMes() {
 
   return (
     <div className="px-4 pt-12 pb-6">
+      <BackButton />
       <h1 className="text-2xl font-extrabold text-primary mb-5">Presença</h1>
 
       {/* Month nav */}

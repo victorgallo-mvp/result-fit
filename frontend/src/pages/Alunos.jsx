@@ -3,7 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { studentsApi } from '@/api/students'
 import { plansApi } from '@/api/plans'
-import { avatarColor, fmtDate, fmtMoney } from '@/lib/utils'
+import { avatarColor, fmtDate, fmtMoney, maskPhone, isValidPhone, phoneDigits } from '@/lib/utils'
+import { WhatsAppButton } from '@/components/WhatsAppButton'
+import { msgMensalidade } from '@/lib/whatsapp'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -134,6 +136,21 @@ function StudentCard({ student: s, onClick, onConfirm, confirming }) {
         <ChevronRight size={16} className="text-muted flex-shrink-0" />
       </button>
 
+      {np && (isOverdue || isPending) && (
+        <WhatsAppButton
+          phone={s.phone}
+          size={15}
+          className="w-9 h-9"
+          title={isOverdue ? 'Cobrar no WhatsApp' : 'Lembrar no WhatsApp'}
+          message={msgMensalidade({
+            name: s.name,
+            amount: np.amount,
+            due_date: np.due_date,
+            vencida: isOverdue,
+          })}
+        />
+      )}
+
       {onConfirm && (
         <button
           onClick={(e) => { e.stopPropagation(); onConfirm() }}
@@ -157,11 +174,12 @@ function StudentCard({ student: s, onClick, onConfirm, confirming }) {
 
 function CreateStudentDialog({ open, onClose }) {
   const qc = useQueryClient()
-  const [form, setForm] = useState({
+  const EMPTY = {
     name: '', phone: '', email: '', birthday: '',
-    weekly_frequency: 3, plan_id: '', notes: '', ultimo_pagamento: '',
-    ultima_avaliacao: '', avaliacao_frequencia: 3,
-  })
+    weekly_frequency: 3, plan_id: '', preco_personalizado: '', notes: '',
+    ultimo_pagamento: '', ultima_avaliacao: '', avaliacao_frequencia: 3,
+  }
+  const [form, setForm] = useState(EMPTY)
 
   const { data: plans = [] } = useQuery({ queryKey: ['plans'], queryFn: plansApi.list })
 
@@ -171,7 +189,7 @@ function CreateStudentDialog({ open, onClose }) {
       qc.invalidateQueries({ queryKey: ['students'] })
       toast.success('Aluno cadastrado!')
       onClose()
-      setForm({ name:'',phone:'',email:'',birthday:'',weekly_frequency:3,plan_id:'',notes:'',ultimo_pagamento:'',ultima_avaliacao:'',avaliacao_frequencia:3 })
+      setForm(EMPTY)
     },
     onError: err => toast.error(err.response?.data?.detail || 'Erro ao cadastrar'),
   })
@@ -181,8 +199,14 @@ function CreateStudentDialog({ open, onClose }) {
     if (!form.name || !form.phone || !form.plan_id) {
       return toast.error('Preencha nome, telefone e plano')
     }
+    // telefone quebrado aqui vira botão de WhatsApp morto depois
+    if (!isValidPhone(form.phone)) {
+      return toast.error('Telefone incompleto — precisa de DDD + número')
+    }
     mutation.mutate({
       ...form,
+      phone: phoneDigits(form.phone),
+      preco_personalizado: form.preco_personalizado === '' ? null : Number(form.preco_personalizado),
       email: form.email || null,
       birthday: form.birthday || null,
       ultimo_pagamento: form.ultimo_pagamento || null,
@@ -201,7 +225,14 @@ function CreateStudentDialog({ open, onClose }) {
           </div>
           <div>
             <Label>Telefone *</Label>
-            <Input value={form.phone} onChange={e => setForm(f => ({...f, phone: e.target.value}))} placeholder="11999999999" required />
+            <Input
+              type="tel"
+              inputMode="numeric"
+              value={form.phone}
+              onChange={e => setForm(f => ({...f, phone: maskPhone(e.target.value)}))}
+              placeholder="(11) 99999-9999"
+              required
+            />
           </div>
           <div>
             <Label>Email</Label>
@@ -216,9 +247,23 @@ function CreateStudentDialog({ open, onClose }) {
             <Select value={form.plan_id} onValueChange={v => setForm(f => ({...f, plan_id: v}))}>
               <SelectTrigger><SelectValue placeholder="Selecione o plano" /></SelectTrigger>
               <SelectContent>
-                {plans.map(p => <SelectItem key={p.id} value={p.id}>{p.name} — R$ {p.price}</SelectItem>)}
+                {plans.map(p => <SelectItem key={p.id} value={p.id}>{p.name} — {fmtMoney(p.price)}</SelectItem>)}
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <Label>Valor personalizado (R$)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              inputMode="decimal"
+              value={form.preco_personalizado}
+              onChange={e => setForm(f => ({...f, preco_personalizado: e.target.value}))}
+              placeholder="Vazio = preço do plano"
+            />
+            <p className="text-xs text-muted mt-1">
+              Para aluno antigo que paga diferente do plano atual.
+            </p>
           </div>
           <div>
             <Label>Frequência semanal *</Label>

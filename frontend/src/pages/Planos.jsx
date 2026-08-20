@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { BookOpen, Edit2, Trash2, Plus } from 'lucide-react'
 import { toast } from 'sonner'
+import { BackButton } from '@/components/BackButton'
 
 export default function Planos() {
   const qc = useQueryClient()
@@ -30,6 +31,7 @@ export default function Planos() {
 
   return (
     <div className="px-4 pt-12 pb-6">
+      <BackButton />
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-2xl font-extrabold text-primary">Planos</h1>

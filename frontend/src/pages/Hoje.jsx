@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { attendancesApi } from '@/api/attendances'
 import { useAuth } from '@/hooks/useAuth'
 import { avatarColor, DAY_LABELS, todayStr } from '@/lib/utils'
-import { Check, ChevronRight, Users, Cake } from 'lucide-react'
+import { WhatsAppButton } from '@/components/WhatsAppButton'
+import { msgAniversario } from '@/lib/whatsapp'
+import { Check, ChevronRight, Users, Cake, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -44,7 +46,11 @@ export default function Hoje() {
   const today  = new Date()
   const dayLabel = format(today, "EEEE, d 'de' MMMM", { locale: ptBR })
 
+  // ALL fica no topo da régua: arrastar até o fim de cima volta a lista inteira,
+  // sem depender de descobrir que tocar na letra ativa desmarca
+  const ALL = '•'
   const letters = [...new Set(students.map(s => s.name[0].toUpperCase()))].sort()
+  const strip = [ALL, ...letters]
   const filtered = filterLetter
     ? students.filter(s => s.name[0].toUpperCase() === filterLetter)
     : students
@@ -52,30 +58,33 @@ export default function Hoje() {
   const stripRef = useRef(null)
   const touchState = useRef({ startLetter: null, prevFilter: null, moved: false })
 
-  const letterFromTouch = useCallback((touch) => {
+  /** Item da régua sob o dedo — ALL, uma letra, ou undefined se a régua sumiu. */
+  const itemFromTouch = useCallback((touch) => {
     const el = stripRef.current
-    if (!el) return null
+    if (!el) return undefined
     const rect = el.getBoundingClientRect()
     const y = touch.clientY - rect.top
-    const idx = Math.floor(y / (rect.height / letters.length))
-    return letters[Math.max(0, Math.min(letters.length - 1, idx))] ?? null
-  }, [letters])
+    const idx = Math.floor(y / (rect.height / strip.length))
+    return strip[Math.max(0, Math.min(strip.length - 1, idx))]
+  }, [strip])
+
+  const asFilter = (item) => (item === ALL ? null : item)
 
   const handleTouchStart = useCallback((e) => {
     e.preventDefault()
-    const letter = letterFromTouch(e.touches[0])
-    touchState.current = { startLetter: letter, prevFilter: filterLetter, moved: false }
-    setFilterLetter(letter)
-  }, [letterFromTouch, filterLetter])
+    const item = itemFromTouch(e.touches[0])
+    if (item === undefined) return
+    touchState.current = { startLetter: asFilter(item), prevFilter: filterLetter, moved: false }
+    setFilterLetter(asFilter(item))
+  }, [itemFromTouch, filterLetter])
 
   const handleTouchMove = useCallback((e) => {
     e.preventDefault()
-    const letter = letterFromTouch(e.touches[0])
-    if (letter) {
-      touchState.current.moved = true
-      setFilterLetter(letter)
-    }
-  }, [letterFromTouch])
+    const item = itemFromTouch(e.touches[0])
+    if (item === undefined) return
+    touchState.current.moved = true
+    setFilterLetter(asFilter(item))
+  }, [itemFromTouch])
 
   const handleTouchEnd = useCallback(() => {
     const { startLetter, prevFilter, moved } = touchState.current
@@ -92,6 +101,17 @@ export default function Hoje() {
           <h1 className="text-2xl font-extrabold text-primary">Hoje</h1>
           <p className="text-sm text-muted pb-0.5">{user?.name}</p>
         </div>
+
+        {/* Sem isto a lista só encolhe, sem dizer por quê nem como voltar */}
+        {filterLetter && (
+          <button
+            onClick={() => setFilterLetter(null)}
+            className="mt-2.5 inline-flex items-center gap-1.5 pl-3 pr-2 py-1 rounded-full bg-accent/10 text-accent text-xs font-bold active:scale-95 transition-transform"
+          >
+            Mostrando: {filterLetter}
+            <X size={13} strokeWidth={3} />
+          </button>
+        )}
       </div>
 
       {/* Content + letter index */}
@@ -157,16 +177,20 @@ export default function Hoje() {
             onTouchEnd={handleTouchEnd}
             className="flex flex-col items-center justify-around py-4 pr-1 w-6 flex-shrink-0 select-none touch-none"
           >
-            {letters.map(l => (
-              <span
-                key={l}
-                className={`text-[11px] font-bold w-5 text-center leading-none transition-colors ${
-                  filterLetter === l ? 'text-accent scale-125' : 'text-muted'
-                }`}
-              >
-                {l}
-              </span>
-            ))}
+            {strip.map(item => {
+              const active = item === ALL ? filterLetter === null : filterLetter === item
+              return (
+                <span
+                  key={item}
+                  onClick={() => setFilterLetter(asFilter(item))}
+                  className={`text-[11px] font-bold w-5 text-center leading-none transition-colors ${
+                    active ? 'text-accent scale-125' : 'text-muted'
+                  }`}
+                >
+                  {item}
+                </span>
+              )
+            })}
           </div>
         )}
       </div>
@@ -201,6 +225,15 @@ function StudentCard({ student, onToggle, onNavigate }) {
       </div>
 
       <div className="flex items-center gap-2 flex-shrink-0">
+        {student.birthday_today && (
+          <WhatsAppButton
+            phone={student.phone}
+            size={15}
+            className="w-8 h-8 rounded-lg"
+            title="Parabenizar no WhatsApp"
+            message={msgAniversario(student)}
+          />
+        )}
         <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 border-2 ${
           student.marked ? 'bg-accent border-accent' : 'border-border bg-white'
         }`}>

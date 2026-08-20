@@ -35,6 +35,7 @@ async def list_payments(status_filter: str | None, due_until: date | None) -> li
         doc = serialize_doc(d)
         s = student_map.get(d.get("student_id"))
         doc["student_name"] = s["name"] if s else None
+        doc["student_phone"] = s.get("phone") if s else None
         result.append(doc)
     return result
 
