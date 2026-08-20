@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     database_name: str = "personal_system"
     secret_key: str
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 10080  # 7 days
+    access_token_expire_minutes: int = 525600  # 1 ano — sessão contínua, sem relogin
     cors_origins: str = "http://localhost:5173"
 
     @property

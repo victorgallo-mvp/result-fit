@@ -66,26 +66,19 @@ async def seed():
     client = AsyncIOMotorClient(MONGO_URL)
     db = client[DB_NAME]
 
-    for col in ["tenants", "users", "students", "plans", "payments", "attendances", "financial_transactions"]:
+    for col in ["users", "students", "plans", "payments", "attendances", "financial_transactions"]:
         await db[col].drop()
     print("Cleared collections")
 
-    # Tenant
-    tenant_id = (await db.tenants.insert_one({
-        "name": "Academia Teste",
-        "created_at": datetime.now(timezone.utc),
-    })).inserted_id
-
-    # User
-    user_id = (await db.users.insert_one({
-        "tenant_id": tenant_id,
+    # User (único — o sistema não tem multitenant nem múltiplos personais)
+    await db.users.insert_one({
         "name": "Personal Manhã",
         "email": "manha@teste.com",
         "password_hash": pwd_ctx.hash("personal123"),
         "role": "personal",
         "active": True,
         "created_at": datetime.now(timezone.utc),
-    })).inserted_id
+    })
     await db.users.create_index("email", unique=True)
     await db.attendances.create_index([("student_id", 1), ("date", 1)], unique=True)
     print(f"User: manha@teste.com / personal123")
@@ -98,7 +91,7 @@ async def seed():
     ]
     plan_ids = []
     for p in plans_data:
-        pid = (await db.plans.insert_one({**p, "tenant_id": tenant_id, "active": True})).inserted_id
+        pid = (await db.plans.insert_one({**p, "active": True})).inserted_id
         plan_ids.append(pid)
     print(f"Plans: {[p['name'] for p in plans_data]}")
 
@@ -112,8 +105,6 @@ async def seed():
         bday      = birthday(age, bday_offset) if bday_offset is not None else birthday(age, 3)
 
         doc = {
-            "tenant_id":           tenant_id,
-            "assigned_to":         user_id,
             "name":                name,
             "phone":               f"119{random.randint(10000000,99999999)}",
             "email":               f"{name.split()[0].lower()}@email.com",
@@ -142,7 +133,6 @@ async def seed():
         for i in range(3):
             paid_on = add_months(ult_date, -(i + 1) if i > 0 else 0) if i == 0 else add_months(ult_date, -i)
             await db.payments.insert_one({
-                "tenant_id":      tenant_id,
                 "student_id":     sid,
                 "amount":         price,
                 "due_date":       dt(paid_on),
@@ -165,9 +155,7 @@ async def seed():
             if random.random() < 0.85:
                 try:
                     await db.attendances.insert_one({
-                        "tenant_id":  tenant_id,
                         "student_id": sid,
-                        "user_id":    user_id,
                         "date":       dt(d),
                         "created_at": datetime.now(timezone.utc),
                     })

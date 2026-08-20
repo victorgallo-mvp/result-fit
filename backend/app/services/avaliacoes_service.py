@@ -1,11 +1,9 @@
 import calendar
 from datetime import datetime, date
-from bson import ObjectId
 from app.database import get_db
-from app.models.common import serialize_doc
 
 
-async def get_avaliacoes(tenant_id: str, user_id: str) -> dict:
+async def get_avaliacoes() -> dict:
     db = get_db()
     today = date.today()
     today_dt = datetime.combine(today, datetime.min.time())
@@ -16,8 +14,6 @@ async def get_avaliacoes(tenant_id: str, user_id: str) -> dict:
 
     students = await db.students.find(
         {
-            "tenant_id": ObjectId(tenant_id),
-            "assigned_to": ObjectId(user_id),
             "status": "active",
             "proxima_avaliacao": {"$ne": None, "$lte": last_day_dt},
         },

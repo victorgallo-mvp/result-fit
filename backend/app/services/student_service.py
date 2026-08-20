@@ -19,16 +19,9 @@ def add_months(d: date, n: int) -> date:
     return d
 
 
-def _student_filter(tenant_id: str, user_id: str) -> dict:
-    return {
-        "tenant_id": ObjectId(tenant_id),
-        "assigned_to": ObjectId(user_id),
-    }
-
-
-async def list_students(tenant_id: str, user_id: str, status_filter: str | None, search: str | None) -> list:
+async def list_students(status_filter: str | None, search: str | None) -> list:
     db = get_db()
-    query = _student_filter(tenant_id, user_id)
+    query: dict = {}
     if status_filter:
         query["status"] = status_filter
     if search:
@@ -70,12 +63,9 @@ async def list_students(tenant_id: str, user_id: str, status_filter: str | None,
     return result
 
 
-async def get_student(student_id: str, tenant_id: str, user_id: str) -> dict:
+async def get_student(student_id: str) -> dict:
     db = get_db()
-    student = await db.students.find_one({
-        "_id": ObjectId(student_id),
-        **_student_filter(tenant_id, user_id),
-    })
+    student = await db.students.find_one({"_id": ObjectId(student_id)})
     if not student:
         raise HTTPException(status_code=404, detail="Aluno não encontrado")
 
@@ -85,15 +75,13 @@ async def get_student(student_id: str, tenant_id: str, user_id: str) -> dict:
     return doc
 
 
-async def create_student(data: StudentCreate, tenant_id: str, user_id: str) -> dict:
+async def create_student(data: StudentCreate) -> dict:
     db = get_db()
-    plan = await db.plans.find_one({"_id": ObjectId(data.plan_id), "tenant_id": ObjectId(tenant_id)})
+    plan = await db.plans.find_one({"_id": ObjectId(data.plan_id)})
     if not plan:
         raise HTTPException(status_code=404, detail="Plano não encontrado")
 
     doc = {
-        "tenant_id": ObjectId(tenant_id),
-        "assigned_to": ObjectId(user_id),
         "name": data.name,
         "phone": data.phone,
         "email": data.email,
@@ -123,12 +111,9 @@ async def create_student(data: StudentCreate, tenant_id: str, user_id: str) -> d
     return serialize_doc(doc)
 
 
-async def pagar_student(student_id: str, tenant_id: str, user_id: str) -> dict:
+async def pagar_student(student_id: str) -> dict:
     db = get_db()
-    student = await db.students.find_one({
-        "_id": ObjectId(student_id),
-        **_student_filter(tenant_id, user_id),
-    })
+    student = await db.students.find_one({"_id": ObjectId(student_id)})
     if not student:
         raise HTTPException(status_code=404, detail="Aluno não encontrado")
 
@@ -145,7 +130,6 @@ async def pagar_student(student_id: str, tenant_id: str, user_id: str) -> dict:
         {"$set": {"ultimo_pagamento": today_dt, "proximo_pagamento": proximo_dt}},
     )
     await db.payments.insert_one({
-        "tenant_id": ObjectId(tenant_id),
         "student_id": ObjectId(student_id),
         "amount": price,
         "due_date": today_dt,
@@ -156,8 +140,6 @@ async def pagar_student(student_id: str, tenant_id: str, user_id: str) -> dict:
         "created_at": datetime.now(timezone.utc),
     })
     await db.financial_transactions.insert_one({
-        "tenant_id": ObjectId(tenant_id),
-        "user_id": ObjectId(user_id),
         "type": "income",
         "category": "Mensalidade",
         "amount": price,
@@ -165,15 +147,12 @@ async def pagar_student(student_id: str, tenant_id: str, user_id: str) -> dict:
         "description": f"Mensalidade - {student.get('name', '')}",
         "created_at": datetime.now(timezone.utc),
     })
-    return await get_student(student_id, tenant_id, user_id)
+    return await get_student(student_id)
 
 
-async def update_student(student_id: str, data: StudentUpdate, tenant_id: str, user_id: str) -> dict:
+async def update_student(student_id: str, data: StudentUpdate) -> dict:
     db = get_db()
-    student = await db.students.find_one({
-        "_id": ObjectId(student_id),
-        **_student_filter(tenant_id, user_id),
-    })
+    student = await db.students.find_one({"_id": ObjectId(student_id)})
     if not student:
         raise HTTPException(status_code=404, detail="Aluno não encontrado")
 
@@ -201,15 +180,12 @@ async def update_student(student_id: str, data: StudentUpdate, tenant_id: str, u
             )
 
     await db.students.update_one({"_id": ObjectId(student_id)}, {"$set": updates})
-    return await get_student(student_id, tenant_id, user_id)
+    return await get_student(student_id)
 
 
-async def avaliar_student(student_id: str, tenant_id: str, user_id: str) -> dict:
+async def avaliar_student(student_id: str) -> dict:
     db = get_db()
-    student = await db.students.find_one({
-        "_id": ObjectId(student_id),
-        **_student_filter(tenant_id, user_id),
-    })
+    student = await db.students.find_one({"_id": ObjectId(student_id)})
     if not student:
         raise HTTPException(status_code=404, detail="Aluno não encontrado")
 
@@ -223,20 +199,20 @@ async def avaliar_student(student_id: str, tenant_id: str, user_id: str) -> dict
             "proxima_avaliacao": datetime.combine(proxima, datetime.min.time()),
         }},
     )
-    return await get_student(student_id, tenant_id, user_id)
+    return await get_student(student_id)
 
 
-async def delete_student(student_id: str, tenant_id: str, user_id: str):
+async def delete_student(student_id: str):
     db = get_db()
     result = await db.students.update_one(
-        {"_id": ObjectId(student_id), **_student_filter(tenant_id, user_id)},
+        {"_id": ObjectId(student_id)},
         {"$set": {"status": "inactive"}},
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Aluno não encontrado")
 
 
-async def get_birthdays(tenant_id: str, user_id: str) -> dict:
+async def get_birthdays() -> dict:
     db = get_db()
     today = date.today()
     tomorrow = date.today().replace(day=today.day + 1) if today.day < 28 else None
@@ -244,8 +220,6 @@ async def get_birthdays(tenant_id: str, user_id: str) -> dict:
     async def fetch_for_day(d: date) -> list:
         pipeline = [
             {"$match": {
-                "tenant_id": ObjectId(tenant_id),
-                "assigned_to": ObjectId(user_id),
                 "status": "active",
                 "birthday": {"$ne": None},
             }},
@@ -266,12 +240,10 @@ async def get_birthdays(tenant_id: str, user_id: str) -> dict:
     return result
 
 
-async def get_birthdays_month(tenant_id: str, user_id: str, year: int, month: int) -> list:
+async def get_birthdays_month(year: int, month: int) -> list:
     db = get_db()
     pipeline = [
         {"$match": {
-            "tenant_id": ObjectId(tenant_id),
-            "assigned_to": ObjectId(user_id),
             "status": "active",
             "birthday": {"$ne": None},
         }},

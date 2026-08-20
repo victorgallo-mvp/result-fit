@@ -1,12 +1,11 @@
 from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
-from app.models.user import UserCreate, UserUpdate
-from app.auth.dependencies import get_current_user, require_admin
+from app.models.user import UserUpdate
+from app.auth.dependencies import get_current_user
 from app.services import auth_service
 from app.models.common import serialize_doc
 from app.database import get_db
 from app.auth.jwt_handler import hash_password
-from bson import ObjectId
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -14,12 +13,6 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/login")
 async def login(form: OAuth2PasswordRequestForm = Depends()):
     return await auth_service.login(form.username, form.password)
-
-
-@router.post("/register", status_code=201)
-async def register(data: UserCreate, admin=Depends(require_admin)):
-    tenant_id = str(admin["tenant_id"])
-    return await auth_service.register(data, tenant_id)
 
 
 @router.get("/me")

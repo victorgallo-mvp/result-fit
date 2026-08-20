@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -11,8 +11,11 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
-  const { login } = useAuth()
+  const { user, login } = useAuth()
   const navigate = useNavigate()
+
+  // sessão é de 1 ano: quem já entrou uma vez cai direto no Hoje, sem ver esta tela
+  if (user) return <Navigate to="/" replace />
 
   const handleSubmit = async (e) => {
     e.preventDefault()

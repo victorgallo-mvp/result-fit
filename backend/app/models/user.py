@@ -1,19 +1,6 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from typing import Literal, Optional
 from datetime import datetime
-
-
-class UserCreate(BaseModel):
-    name: str
-    email: EmailStr
-    password: str
-    role: Literal["personal", "admin"] = "personal"
-    shift: Literal["morning", "afternoon", "full"] = "morning"
-
-
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
 
 
 class UserUpdate(BaseModel):
@@ -24,7 +11,6 @@ class UserUpdate(BaseModel):
 
 class UserOut(BaseModel):
     id: str
-    tenant_id: str
     name: str
     email: str
     role: str

@@ -5,13 +5,9 @@ from app.database import get_db
 from app.models.common import serialize_doc
 
 
-async def mark_attendance(student_id: str, mark_date: date, tenant_id: str, user_id: str) -> dict:
+async def mark_attendance(student_id: str, mark_date: date) -> dict:
     db = get_db()
-    student = await db.students.find_one({
-        "_id": ObjectId(student_id),
-        "tenant_id": ObjectId(tenant_id),
-        "assigned_to": ObjectId(user_id),
-    })
+    student = await db.students.find_one({"_id": ObjectId(student_id)})
     if not student:
         raise HTTPException(status_code=404, detail="Aluno não encontrado")
 
@@ -24,9 +20,7 @@ async def mark_attendance(student_id: str, mark_date: date, tenant_id: str, user
         return serialize_doc(existing)
 
     doc = {
-        "tenant_id": ObjectId(tenant_id),
         "student_id": ObjectId(student_id),
-        "user_id": ObjectId(user_id),
         "date": mark_dt,
         "created_at": datetime.now(timezone.utc),
     }
@@ -35,13 +29,9 @@ async def mark_attendance(student_id: str, mark_date: date, tenant_id: str, user
     return serialize_doc(doc)
 
 
-async def unmark_attendance(student_id: str, mark_date: date, tenant_id: str, user_id: str):
+async def unmark_attendance(student_id: str, mark_date: date):
     db = get_db()
-    student = await db.students.find_one({
-        "_id": ObjectId(student_id),
-        "tenant_id": ObjectId(tenant_id),
-        "assigned_to": ObjectId(user_id),
-    })
+    student = await db.students.find_one({"_id": ObjectId(student_id)})
     if not student:
         raise HTTPException(status_code=404, detail="Aluno não encontrado")
 
@@ -54,14 +44,12 @@ async def unmark_attendance(student_id: str, mark_date: date, tenant_id: str, us
         raise HTTPException(status_code=404, detail="Presença não encontrada")
 
 
-async def get_today_list(tenant_id: str, user_id: str) -> list:
+async def get_today_list() -> list:
     db = get_db()
     today = date.today()
     today_dt = datetime.combine(today, datetime.min.time())
 
     students = await db.students.find({
-        "tenant_id": ObjectId(tenant_id),
-        "assigned_to": ObjectId(user_id),
         "status": "active",
     }).sort("name", 1).to_list(length=500)
 
@@ -98,13 +86,9 @@ async def get_today_list(tenant_id: str, user_id: str) -> list:
     return result
 
 
-async def get_attendance_stats(student_id: str, tenant_id: str, user_id: str, year: int, month: int) -> dict:
+async def get_attendance_stats(student_id: str, year: int, month: int) -> dict:
     db = get_db()
-    student = await db.students.find_one({
-        "_id": ObjectId(student_id),
-        "tenant_id": ObjectId(tenant_id),
-        "assigned_to": ObjectId(user_id),
-    })
+    student = await db.students.find_one({"_id": ObjectId(student_id)})
     if not student:
         raise HTTPException(status_code=404, detail="Aluno não encontrado")
 
@@ -132,7 +116,7 @@ async def get_attendance_stats(student_id: str, tenant_id: str, user_id: str, ye
     return {"expected": expected, "attended": attended, "faltas": faltas, "rate": rate}
 
 
-async def get_month_attendance_list(tenant_id: str, user_id: str, year: int, month: int) -> list:
+async def get_month_attendance_list(year: int, month: int) -> list:
     import calendar as cal
     db = get_db()
 
@@ -144,7 +128,7 @@ async def get_month_attendance_list(tenant_id: str, user_id: str, year: int, mon
     cutoff = min(last_day, today)
 
     students = await db.students.find(
-        {"tenant_id": ObjectId(tenant_id), "assigned_to": ObjectId(user_id), "status": "active"},
+        {"status": "active"},
         {"_id": 1, "name": 1, "weekly_frequency": 1},
     ).sort("name", 1).to_list(500)
 
@@ -182,7 +166,7 @@ async def get_month_attendance_list(tenant_id: str, user_id: str, year: int, mon
     return result
 
 
-async def get_student_attendances_month(student_id: str, tenant_id: str, user_id: str, year: int, month: int) -> list:
+async def get_student_attendances_month(student_id: str, year: int, month: int) -> list:
     db = get_db()
     import calendar
     first_day = datetime(year, month, 1)

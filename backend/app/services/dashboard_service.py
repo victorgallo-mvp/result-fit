@@ -1,14 +1,11 @@
 import asyncio
 from datetime import datetime, date, timedelta
-from bson import ObjectId
 from app.database import get_db
 from app.models.common import serialize_doc
 
 
-async def get_dashboard(tenant_id: str, user_id: str) -> dict:
+async def get_dashboard() -> dict:
     db = get_db()
-    tid = ObjectId(tenant_id)
-    uid = ObjectId(user_id)
 
     today = date.today()
     today_dt = datetime.combine(today, datetime.min.time())
@@ -17,7 +14,7 @@ async def get_dashboard(tenant_id: str, user_id: str) -> dict:
     last_dt = datetime.combine(today, datetime.max.time())
 
     students = await db.students.find(
-        {"tenant_id": tid, "assigned_to": uid, "status": "active"},
+        {"status": "active"},
         {"_id": 1, "name": 1, "weekly_frequency": 1, "proximo_pagamento": 1, "plan_id": 1, "birthday": 1},
     ).to_list(length=500)
 

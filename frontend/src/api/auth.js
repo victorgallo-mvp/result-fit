@@ -10,5 +10,4 @@ export const authApi = {
   },
   me: async () => (await api.get('/auth/me')).data,
   updateMe: async (data) => (await api.put('/auth/me', data)).data,
-  register: async (data) => (await api.post('/auth/register', data)).data,
 }

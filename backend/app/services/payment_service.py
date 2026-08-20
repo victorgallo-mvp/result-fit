@@ -14,15 +14,9 @@ def _compute_status(due_date: date, paid_at: date | None) -> str:
     return "pending"
 
 
-async def list_payments(tenant_id: str, user_id: str, status_filter: str | None, due_until: date | None) -> list:
+async def list_payments(status_filter: str | None, due_until: date | None) -> list:
     db = get_db()
-    student_ids = [
-        s["_id"] async for s in db.students.find(
-            {"tenant_id": ObjectId(tenant_id), "assigned_to": ObjectId(user_id)},
-            {"_id": 1},
-        )
-    ]
-    query: dict = {"tenant_id": ObjectId(tenant_id), "student_id": {"$in": student_ids}}
+    query: dict = {}
     if status_filter:
         query["status"] = status_filter
     if due_until:
@@ -30,34 +24,29 @@ async def list_payments(tenant_id: str, user_id: str, status_filter: str | None,
 
     docs = await db.payments.find(query).sort("due_date", -1).to_list(length=1000)
 
+    student_ids = list({d["student_id"] for d in docs if d.get("student_id")})
     student_map = {}
-    for sid in student_ids:
-        s = await db.students.find_one({"_id": sid}, {"name": 1, "phone": 1})
-        if s:
-            student_map[sid] = s
+    if student_ids:
+        async for s in db.students.find({"_id": {"$in": student_ids}}, {"name": 1, "phone": 1}):
+            student_map[s["_id"]] = s
 
     result = []
     for d in docs:
         doc = serialize_doc(d)
-        s = student_map.get(d["student_id"])
+        s = student_map.get(d.get("student_id"))
         doc["student_name"] = s["name"] if s else None
         result.append(doc)
     return result
 
 
-async def create_payment(data: PaymentCreate, tenant_id: str, user_id: str) -> dict:
+async def create_payment(data: PaymentCreate) -> dict:
     db = get_db()
-    student = await db.students.find_one({
-        "_id": ObjectId(data.student_id),
-        "tenant_id": ObjectId(tenant_id),
-        "assigned_to": ObjectId(user_id),
-    })
+    student = await db.students.find_one({"_id": ObjectId(data.student_id)})
     if not student:
         raise HTTPException(status_code=404, detail="Aluno não encontrado")
 
     due_dt = datetime.combine(data.due_date, datetime.min.time())
     doc = {
-        "tenant_id": ObjectId(tenant_id),
         "student_id": ObjectId(data.student_id),
         "amount": data.amount,
         "due_date": due_dt,
@@ -72,21 +61,11 @@ async def create_payment(data: PaymentCreate, tenant_id: str, user_id: str) -> d
     return serialize_doc(doc)
 
 
-async def mark_paid(payment_id: str, data: PaymentMarkPaid, tenant_id: str, user_id: str) -> dict:
+async def mark_paid(payment_id: str, data: PaymentMarkPaid) -> dict:
     db = get_db()
-    payment = await db.payments.find_one({
-        "_id": ObjectId(payment_id),
-        "tenant_id": ObjectId(tenant_id),
-    })
+    payment = await db.payments.find_one({"_id": ObjectId(payment_id)})
     if not payment:
         raise HTTPException(status_code=404, detail="Pagamento não encontrado")
-
-    student = await db.students.find_one({
-        "_id": payment["student_id"],
-        "assigned_to": ObjectId(user_id),
-    })
-    if not student:
-        raise HTTPException(status_code=403, detail="Acesso negado")
 
     paid_dt = datetime.combine(data.paid_at, datetime.min.time())
     await db.payments.update_one(
@@ -97,13 +76,9 @@ async def mark_paid(payment_id: str, data: PaymentMarkPaid, tenant_id: str, user
     return serialize_doc(doc)
 
 
-async def get_student_payments(student_id: str, tenant_id: str, user_id: str) -> list:
+async def get_student_payments(student_id: str) -> list:
     db = get_db()
-    student = await db.students.find_one({
-        "_id": ObjectId(student_id),
-        "tenant_id": ObjectId(tenant_id),
-        "assigned_to": ObjectId(user_id),
-    })
+    student = await db.students.find_one({"_id": ObjectId(student_id)})
     if not student:
         raise HTTPException(status_code=404, detail="Aluno não encontrado")
 
@@ -111,16 +86,11 @@ async def get_student_payments(student_id: str, tenant_id: str, user_id: str) ->
     return [serialize_doc(d) for d in docs]
 
 
-
-async def update_payment(payment_id: str, data: PaymentUpdate, tenant_id: str, user_id: str) -> dict:
+async def update_payment(payment_id: str, data: PaymentUpdate) -> dict:
     db = get_db()
-    payment = await db.payments.find_one({"_id": ObjectId(payment_id), "tenant_id": ObjectId(tenant_id)})
+    payment = await db.payments.find_one({"_id": ObjectId(payment_id)})
     if not payment:
         raise HTTPException(status_code=404, detail="Pagamento não encontrado")
-
-    student = await db.students.find_one({"_id": payment["student_id"], "assigned_to": ObjectId(user_id)})
-    if not student:
-        raise HTTPException(status_code=403, detail="Acesso negado")
 
     updates = data.model_dump(exclude_none=True)
     if "due_date" in updates:
@@ -133,14 +103,8 @@ async def update_payment(payment_id: str, data: PaymentUpdate, tenant_id: str, u
     return serialize_doc(doc)
 
 
-async def delete_payment(payment_id: str, tenant_id: str, user_id: str):
+async def delete_payment(payment_id: str):
     db = get_db()
-    payment = await db.payments.find_one({"_id": ObjectId(payment_id), "tenant_id": ObjectId(tenant_id)})
-    if not payment:
+    result = await db.payments.delete_one({"_id": ObjectId(payment_id)})
+    if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Pagamento não encontrado")
-
-    student = await db.students.find_one({"_id": payment["student_id"], "assigned_to": ObjectId(user_id)})
-    if not student:
-        raise HTTPException(status_code=403, detail="Acesso negado")
-
-    await db.payments.delete_one({"_id": ObjectId(payment_id)})

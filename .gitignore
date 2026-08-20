@@ -18,3 +18,6 @@ dist/
 # OS
 .DS_Store
 *.log
+
+# Backups de migração (contêm dados reais de alunos)
+backend/backup_pre_migracao_*.json

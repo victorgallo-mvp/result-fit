@@ -1,4 +1,4 @@
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone
 from bson import ObjectId
 from fastapi import HTTPException
 from app.database import get_db
@@ -6,15 +6,13 @@ from app.models.financial import FinancialCreate, FinancialUpdate
 from app.models.common import serialize_doc
 
 
-async def list_transactions(tenant_id: str, user_id: str, year: int, month: int) -> dict:
+async def list_transactions(year: int, month: int) -> dict:
     db = get_db()
     import calendar
     first = datetime(year, month, 1)
     last = datetime(year, month, calendar.monthrange(year, month)[1], 23, 59, 59)
 
     docs = await db.financial_transactions.find({
-        "tenant_id": ObjectId(tenant_id),
-        "user_id": ObjectId(user_id),
         "date": {"$gte": first, "$lte": last},
     }).sort("date", -1).to_list(length=500)
 
@@ -29,11 +27,9 @@ async def list_transactions(tenant_id: str, user_id: str, year: int, month: int)
     }
 
 
-async def create_transaction(data: FinancialCreate, tenant_id: str, user_id: str) -> dict:
+async def create_transaction(data: FinancialCreate) -> dict:
     db = get_db()
     doc = {
-        "tenant_id": ObjectId(tenant_id),
-        "user_id": ObjectId(user_id),
         "type": data.type,
         "category": data.category,
         "amount": data.amount,
@@ -46,13 +42,9 @@ async def create_transaction(data: FinancialCreate, tenant_id: str, user_id: str
     return serialize_doc(doc)
 
 
-async def update_transaction(tx_id: str, data: FinancialUpdate, tenant_id: str, user_id: str) -> dict:
+async def update_transaction(tx_id: str, data: FinancialUpdate) -> dict:
     db = get_db()
-    tx = await db.financial_transactions.find_one({
-        "_id": ObjectId(tx_id),
-        "tenant_id": ObjectId(tenant_id),
-        "user_id": ObjectId(user_id),
-    })
+    tx = await db.financial_transactions.find_one({"_id": ObjectId(tx_id)})
     if not tx:
         raise HTTPException(status_code=404, detail="Transação não encontrada")
 
@@ -65,12 +57,8 @@ async def update_transaction(tx_id: str, data: FinancialUpdate, tenant_id: str, 
     return serialize_doc(doc)
 
 
-async def delete_transaction(tx_id: str, tenant_id: str, user_id: str):
+async def delete_transaction(tx_id: str):
     db = get_db()
-    result = await db.financial_transactions.delete_one({
-        "_id": ObjectId(tx_id),
-        "tenant_id": ObjectId(tenant_id),
-        "user_id": ObjectId(user_id),
-    })
+    result = await db.financial_transactions.delete_one({"_id": ObjectId(tx_id)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Transação não encontrada")
