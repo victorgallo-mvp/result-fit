@@ -38,11 +38,15 @@ export function msgAniversario(student) {
   return `Parabéns, ${primeiroNome(student.name)}! 🎉 Muitas felicidades e um ótimo ano novo de vida. Bons treinos! 💪`
 }
 
-export function msgMensalidade({ name, amount, due_date, vencida }) {
+export function msgMensalidade({ name, amount, due_date, vencida, periodicidade }) {
   const nome = primeiroNome(name)
   const valor = fmtMoney(amount)
   const data = fmtDate(due_date)
+  // mensal continua "mensalidade"; os outros viram "plano trimestral" etc.
+  const cobranca = !periodicidade || periodicidade === 'mensal'
+    ? 'mensalidade'
+    : `plano ${periodicidade}`
   return vencida
-    ? `Oi, ${nome}! Sua mensalidade de ${valor} venceu dia ${data}. Consegue dar uma olhada? Qualquer coisa é só chamar!`
-    : `Oi, ${nome}! Passando pra lembrar que sua mensalidade de ${valor} vence dia ${data}. Qualquer dúvida é só chamar!`
+    ? `Oi, ${nome}! Sua ${cobranca} de ${valor} venceu dia ${data}. Consegue dar uma olhada? Qualquer coisa é só chamar!`
+    : `Oi, ${nome}! Passando pra lembrar que sua ${cobranca} de ${valor} vence dia ${data}. Qualquer dúvida é só chamar!`
 }

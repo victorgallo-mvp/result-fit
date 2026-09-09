@@ -180,6 +180,7 @@ function PaymentRow({ payment, onClick, color, onConfirm, confirming, vencida })
           amount: payment.amount,
           due_date: payment.due_date,
           vencida,
+          periodicidade: payment.periodicidade,
         })}
       />
 

@@ -8,7 +8,6 @@ import Dashboard     from '@/pages/Dashboard'
 import Alunos        from '@/pages/Alunos'
 import AlunoDetalhe  from '@/pages/AlunoDetalhe'
 import Pagamentos    from '@/pages/Pagamentos'
-import Planos        from '@/pages/Planos'
 import Financeiro    from '@/pages/Financeiro'
 import Configuracoes  from '@/pages/Configuracoes'
 import FrequenciaMes  from '@/pages/FrequenciaMes'
@@ -32,7 +31,6 @@ export default function App() {
             <Route path="alunos"      element={<Alunos />} />
             <Route path="alunos/:id"  element={<AlunoDetalhe />} />
             <Route path="pagamentos"  element={<Pagamentos />} />
-            <Route path="planos"      element={<Planos />} />
             <Route path="financeiro"  element={<Financeiro />} />
             <Route path="config"      element={<Configuracoes />} />
             <Route path="frequencia"  element={<FrequenciaMes />} />

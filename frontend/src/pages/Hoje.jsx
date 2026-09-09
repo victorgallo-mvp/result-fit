@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { attendancesApi } from '@/api/attendances'
 import { useAuth } from '@/hooks/useAuth'
-import { avatarColor, DAY_LABELS, todayStr } from '@/lib/utils'
+import { avatarColor, DAY_LABELS, todayStr, periodicidadeLabel } from '@/lib/utils'
 import { WhatsAppButton } from '@/components/WhatsAppButton'
 import { msgAniversario } from '@/lib/whatsapp'
 import { Check, ChevronRight, Users, Cake, X } from 'lucide-react'
@@ -220,7 +220,7 @@ function StudentCard({ student, onToggle, onNavigate }) {
           )}
         </div>
         <span className="text-xs text-muted">
-          {student.plan?.name ?? 'Sem plano'} · {student.weekly_frequency ?? 3}x/sem
+          {periodicidadeLabel(student.periodicidade)} · {student.weekly_frequency ?? 3}x/sem
         </span>
       </div>
 

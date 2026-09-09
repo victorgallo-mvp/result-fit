@@ -3,16 +3,21 @@ from datetime import datetime, timezone, date, timedelta
 from bson import ObjectId
 from fastapi import HTTPException
 from app.database import get_db
-from app.models.student import StudentCreate, StudentUpdate
+from app.models.student import StudentCreate, StudentUpdate, PERIODICIDADE_MESES, PERIODICIDADE_LABEL
 from app.models.common import serialize_doc
 
 
-def valor_mensal(student: dict, plan: dict | None) -> float:
-    """Valor que este aluno paga: o combinado com ele, ou o preço do plano."""
-    personalizado = student.get("preco_personalizado")
-    if personalizado is not None:
-        return personalizado
-    return plan.get("price", 0) if plan else 0
+def valor_cobrado(student: dict) -> float:
+    """Valor que este aluno paga por período."""
+    return student.get("valor") or 0
+
+
+def meses_periodo(student: dict) -> int:
+    return PERIODICIDADE_MESES.get(student.get("periodicidade", "mensal"), 1)
+
+
+def proximo_vencimento(ultimo: date, student: dict) -> date:
+    return add_months(ultimo, meses_periodo(student))
 
 
 def add_one_month(d: date) -> date:
@@ -37,12 +42,6 @@ async def list_students(status_filter: str | None, search: str | None) -> list:
 
     students = await db.students.find(query).sort("name", 1).to_list(length=500)
 
-    plan_ids = list({s["plan_id"] for s in students if s.get("plan_id")})
-    plans = {}
-    if plan_ids:
-        async for p in db.plans.find({"_id": {"$in": plan_ids}}):
-            plans[p["_id"]] = p
-
     today = date.today()
     today_dt = datetime.combine(today, datetime.min.time())
     in_3_dt = datetime.combine(today + timedelta(days=3), datetime.min.time())
@@ -50,7 +49,6 @@ async def list_students(status_filter: str | None, search: str | None) -> list:
     result = []
     for s in students:
         doc = serialize_doc(s)
-        doc["plan"] = serialize_doc(plans.get(s.get("plan_id")))
         pp = s.get("proximo_pagamento")
         if pp:
             if pp < today_dt:
@@ -61,7 +59,7 @@ async def list_students(status_filter: str | None, search: str | None) -> list:
                 st = "upcoming"
             doc["next_payment"] = {
                 "due_date": pp.strftime("%Y-%m-%d"),
-                "amount": valor_mensal(s, plans.get(s.get("plan_id"))),
+                "amount": valor_cobrado(s),
                 "status": st,
             }
         else:
@@ -76,26 +74,21 @@ async def get_student(student_id: str) -> dict:
     if not student:
         raise HTTPException(status_code=404, detail="Aluno não encontrado")
 
-    doc = serialize_doc(student)
-    plan = await db.plans.find_one({"_id": student.get("plan_id")})
-    doc["plan"] = serialize_doc(plan) if plan else None
-    return doc
+    return serialize_doc(student)
 
 
 async def create_student(data: StudentCreate) -> dict:
     db = get_db()
-    plan = await db.plans.find_one({"_id": ObjectId(data.plan_id)})
-    if not plan:
-        raise HTTPException(status_code=404, detail="Plano não encontrado")
+    if data.valor <= 0:
+        raise HTTPException(status_code=422, detail="Informe o valor cobrado")
 
     doc = {
         "name": data.name,
         "phone": data.phone,
-        "email": data.email,
         "birthday": datetime.combine(data.birthday, datetime.min.time()) if data.birthday else None,
         "weekly_frequency": data.weekly_frequency,
-        "plan_id": ObjectId(data.plan_id),
-        "preco_personalizado": data.preco_personalizado,
+        "periodicidade": data.periodicidade,
+        "valor": data.valor,
         "status": "active",
         "notes": data.notes,
         "photo_url": data.photo_url,
@@ -104,7 +97,7 @@ async def create_student(data: StudentCreate) -> dict:
 
     if data.ultimo_pagamento:
         ult_dt = datetime.combine(data.ultimo_pagamento, datetime.min.time())
-        prox_dt = datetime.combine(add_one_month(data.ultimo_pagamento), datetime.min.time())
+        prox_dt = datetime.combine(proximo_vencimento(data.ultimo_pagamento, doc), datetime.min.time())
         doc["ultimo_pagamento"] = ult_dt
         doc["proximo_pagamento"] = prox_dt
 
@@ -125,11 +118,11 @@ async def pagar_student(student_id: str) -> dict:
     if not student:
         raise HTTPException(status_code=404, detail="Aluno não encontrado")
 
-    plan = await db.plans.find_one({"_id": student.get("plan_id")})
-    price = valor_mensal(student, plan)
+    price = valor_cobrado(student)
+    label = PERIODICIDADE_LABEL.get(student.get("periodicidade", "mensal"), "Mensal")
 
     today = date.today()
-    proximo = add_one_month(today)
+    proximo = proximo_vencimento(today, student)
     today_dt = datetime.combine(today, datetime.min.time())
     proximo_dt = datetime.combine(proximo, datetime.min.time())
 
@@ -152,7 +145,8 @@ async def pagar_student(student_id: str) -> dict:
         "category": "Mensalidade",
         "amount": price,
         "date": today_dt,
-        "description": f"Mensalidade - {student.get('name', '')}",
+        "description": f"{label} - {student.get('name', '')}",
+        "student_id": ObjectId(student_id),
         "created_at": datetime.now(timezone.utc),
     })
     return await get_student(student_id)
@@ -167,12 +161,16 @@ async def update_student(student_id: str, data: StudentUpdate) -> dict:
     updates = data.model_dump(exclude_none=True)
     if "birthday" in updates and updates["birthday"]:
         updates["birthday"] = datetime.combine(updates["birthday"], datetime.min.time())
-    if "plan_id" in updates:
-        updates["plan_id"] = ObjectId(updates["plan_id"])
-    if "ultimo_pagamento" in updates and updates["ultimo_pagamento"]:
-        ult = updates["ultimo_pagamento"]
+    if "valor" in updates and updates["valor"] <= 0:
+        raise HTTPException(status_code=422, detail="Informe o valor cobrado")
+
+    # periodicidade nova recalcula o vencimento a partir do último pagamento conhecido
+    merged = {**student, **updates}
+    ult_raw = updates.get("ultimo_pagamento") or student.get("ultimo_pagamento")
+    if ult_raw and ("ultimo_pagamento" in updates or "periodicidade" in updates):
+        ult = ult_raw.date() if hasattr(ult_raw, "date") else ult_raw
         updates["ultimo_pagamento"] = datetime.combine(ult, datetime.min.time())
-        updates["proximo_pagamento"] = datetime.combine(add_one_month(ult), datetime.min.time())
+        updates["proximo_pagamento"] = datetime.combine(proximo_vencimento(ult, merged), datetime.min.time())
 
     if "ultima_avaliacao" in updates and updates["ultima_avaliacao"]:
         ua = updates["ultima_avaliacao"]
@@ -187,14 +185,8 @@ async def update_student(student_id: str, data: StudentUpdate) -> dict:
                 add_months(ua_date, updates["avaliacao_frequencia"]), datetime.min.time()
             )
 
-    # mandar preco_personalizado: null é como se limpa o valor combinado e volta pro
-    # preço do plano — exclude_none sozinho engoliria isso e o valor antigo ficaria preso
-    ops = {"$set": updates} if updates else {}
-    if "preco_personalizado" in data.model_fields_set and data.preco_personalizado is None:
-        ops["$unset"] = {"preco_personalizado": ""}
-
-    if ops:
-        await db.students.update_one({"_id": ObjectId(student_id)}, ops)
+    if updates:
+        await db.students.update_one({"_id": ObjectId(student_id)}, {"$set": updates})
     return await get_student(student_id)
 
 
@@ -277,3 +269,30 @@ async def get_birthdays_month(year: int, month: int) -> list:
             doc["age_completing"] = year - s["birthday"].year
         result.append(doc)
     return result
+
+
+async def migrar_alunos_legados() -> int:
+    """
+    Alunos criados no modelo antigo (plan_id + preco_personalizado) ganham
+    periodicidade mensal e `valor`. Roda no startup; sem alunos legados não faz nada.
+    """
+    db = get_db()
+    legados = await db.students.find({"valor": {"$exists": False}}).to_list(length=1000)
+    if not legados:
+        return 0
+
+    plans = {p["_id"]: p async for p in db.plans.find()}
+    for s in legados:
+        plan = plans.get(s.get("plan_id"))
+        valor = s.get("preco_personalizado")
+        if valor is None:
+            valor = plan.get("price", 0) if plan else 0
+        await db.students.update_one(
+            {"_id": s["_id"]},
+            {
+                "$set": {"periodicidade": "mensal", "valor": float(valor)},
+                "$unset": {"plan_id": "", "preco_personalizado": "", "email": ""},
+            },
+        )
+    print(f"Migrados {len(legados)} alunos para periodicidade/valor", flush=True)
+    return len(legados)

@@ -46,7 +46,7 @@ def birthday(age: int, month_offset: int = 0) -> datetime:
 # ── scenario definitions ────────────────────────────────────────────────────
 # proximo_pagamento relative to TODAY
 SCENARIOS = [
-    # name,                training_days,         plan_idx, due_day, proximo_offset, age, bday_offset
+    # name,                training_days,         valor_idx, due_day, proximo_offset, age, bday_offset
     ("Ana Silva",          ["mon", "wed"],          0,       10,     -15,            28,  0),   # VENCIDA 15 dias · aniversário hoje
     ("Carlos Souza",       ["tue", "thu", "sat"],   1,       5,      -3,             32,  2),   # VENCIDA 3 dias
     ("Fernanda Lima",      ["mon", "wed", "fri"],   1,       15,     +1,             25,  10),  # VENCE AMANHÃ
@@ -66,7 +66,7 @@ async def seed():
     client = AsyncIOMotorClient(MONGO_URL)
     db = client[DB_NAME]
 
-    for col in ["users", "students", "plans", "payments", "attendances", "financial_transactions"]:
+    for col in ["users", "students", "plans", "payments", "attendances", "financial_transactions", "recurring_transactions"]:
         await db[col].drop()
     print("Cleared collections")
 
@@ -83,23 +83,14 @@ async def seed():
     await db.attendances.create_index([("student_id", 1), ("date", 1)], unique=True)
     print(f"User: manha@teste.com / personal123")
 
-    # Plans
-    plans_data = [
-        {"name": "Mensal 2x", "price": 150.0},
-        {"name": "Mensal 3x", "price": 200.0},
-        {"name": "Mensal 5x", "price": 280.0},
-    ]
-    plan_ids = []
-    for p in plans_data:
-        pid = (await db.plans.insert_one({**p, "active": True})).inserted_id
-        plan_ids.append(pid)
-    print(f"Plans: {[p['name'] for p in plans_data]}")
+    # valor cobrado por período (índice usado nos cenários)
+    valores = [150.0, 200.0, 280.0]
 
     # Students
     day_map = {0: "mon", 1: "tue", 2: "wed", 3: "thu", 4: "fri", 5: "sat", 6: "sun"}
     student_ids = []
 
-    for name, training_days, plan_idx, due_day, prox_offset, age, bday_offset in SCENARIOS:
+    for name, training_days, valor_idx, due_day, prox_offset, age, bday_offset in SCENARIOS:
         prox_date = (TODAY + timedelta(days=prox_offset)) if prox_offset is not None else None
         ult_date  = add_months(prox_date, -1) if prox_date else None
         bday      = birthday(age, bday_offset) if bday_offset is not None else birthday(age, 3)
@@ -107,10 +98,11 @@ async def seed():
         doc = {
             "name":                name,
             "phone":               f"119{random.randint(10000000,99999999)}",
-            "email":               f"{name.split()[0].lower()}@email.com",
             "birthday":            bday,
             "training_days":       training_days,
-            "plan_id":             plan_ids[plan_idx],
+            "periodicidade":       "mensal",
+            "valor":               valores[valor_idx],
+            "weekly_frequency":    len(training_days),
             "due_day":             due_day,
             "status":              "active",
             "notes":               "",
@@ -120,16 +112,14 @@ async def seed():
             "created_at":          datetime.now(timezone.utc),
         }
         sid = (await db.students.insert_one(doc)).inserted_id
-        student_ids.append((sid, name, training_days, plan_ids[plan_idx], ult_date))
+        student_ids.append((sid, name, training_days, valores[valor_idx], ult_date))
 
     print(f"Students created: {len(student_ids)}")
 
     # Payment history — 3 paid records per student who has paid
-    for sid, name, _, plan_id, ult_date in student_ids:
+    for sid, name, _, price, ult_date in student_ids:
         if ult_date is None:
             continue
-        plan = await db.plans.find_one({"_id": plan_id})
-        price = plan["price"]
         for i in range(3):
             paid_on = add_months(ult_date, -(i + 1) if i > 0 else 0) if i == 0 else add_months(ult_date, -i)
             await db.payments.insert_one({

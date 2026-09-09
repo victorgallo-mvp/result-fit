@@ -3,10 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { studentsApi } from '@/api/students'
 import { paymentsApi } from '@/api/payments'
-import { plansApi } from '@/api/plans'
 import {
   avatarColor, fmtDate, fmtMoney, getAge,
-  currentMonthStr, METHOD_LABELS, maskPhone, isValidPhone, phoneDigits, valorMensal,
+  currentMonthStr, METHOD_LABELS, maskPhone, isValidPhone, phoneDigits, valorCobrado,
+  PERIODICIDADES, periodicidadeLabel,
 } from '@/lib/utils'
 import { WhatsAppButton } from '@/components/WhatsAppButton'
 import { msgMensalidade } from '@/lib/whatsapp'
@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { ArrowLeft, Phone, Mail, Calendar, Edit2, Check, ChevronLeft, ChevronRight, UserMinus, UserCheck, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Phone, Calendar, Edit2, Check, ChevronLeft, ChevronRight, UserMinus, UserCheck, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { format, getDaysInMonth, getDay } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -68,7 +68,7 @@ export default function AlunoDetalhe() {
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-extrabold text-primary leading-tight">{student.name}</h1>
             <p className="text-sm text-muted mt-0.5">
-              {student.plan?.name ?? 'Sem plano'}
+              {periodicidadeLabel(student.periodicidade)} · {fmtMoney(valorCobrado(student))}
               {age ? ` · ${age} anos` : ''}
               {student.status === 'inactive' && <span className="ml-2 text-xs bg-muted/10 text-muted px-2 py-0.5 rounded-full">Inativo</span>}
             </p>
@@ -100,7 +100,6 @@ function InfoTab({ student }) {
   const [editOpen, setEditOpen] = useState(false)
   const [notes, setNotes] = useState(student.notes ?? '')
   const [notesSaved, setNotesSaved] = useState(true)
-  const { data: plans = [] } = useQuery({ queryKey: ['plans'], queryFn: plansApi.list })
 
   const notesMutation = useMutation({
     mutationFn: () => studentsApi.update(student.id, { notes }),
@@ -115,10 +114,9 @@ function InfoTab({ student }) {
   const [form, setForm] = useState({
     name: student.name,
     phone: maskPhone(student.phone ?? ''),
-    email: student.email ?? '',
     birthday: student.birthday?.slice(0, 10) ?? '',
-    plan_id: student.plan?.id ?? '',
-    preco_personalizado: student.preco_personalizado ?? '',
+    periodicidade: student.periodicidade ?? 'mensal',
+    valor: student.valor ?? '',
     weekly_frequency: student.weekly_frequency ?? 3,
     status: student.status,
     ultimo_pagamento: student.ultimo_pagamento?.slice(0, 10) ?? '',
@@ -140,14 +138,12 @@ function InfoTab({ student }) {
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!isValidPhone(form.phone)) return toast.error('Telefone incompleto — precisa de DDD + número')
+    if (!form.valor || Number(form.valor) <= 0) return toast.error('Informe o valor cobrado')
     mutation.mutate({
       ...form,
       phone: phoneDigits(form.phone),
-      email: form.email || null,
       birthday: form.birthday || null,
-      plan_id: form.plan_id || student.plan?.id,
-      // vazio = volta a seguir o preço do plano
-      preco_personalizado: form.preco_personalizado === '' ? null : Number(form.preco_personalizado),
+      valor: Number(form.valor),
       ultimo_pagamento: form.ultimo_pagamento || null,
       ultima_avaliacao: form.ultima_avaliacao || null,
       weekly_frequency: form.weekly_frequency,
@@ -167,7 +163,6 @@ function InfoTab({ student }) {
           )
         }
       />
-      <InfoRow icon={Mail}  label="Email"    value={student.email ?? '—'} />
       <InfoRow icon={Calendar} label="Nascimento" value={student.birthday ? `${fmtDate(student.birthday)} (${getAge(student.birthday)} anos)` : '—'} />
 
       <div className="bg-white border border-border rounded-2xl p-4">
@@ -176,12 +171,10 @@ function InfoTab({ student }) {
       </div>
 
       <div className="bg-white border border-border rounded-2xl p-4">
-        <p className="text-xs text-muted font-semibold uppercase tracking-wider mb-1">Mensalidade</p>
-        <p className="text-primary font-semibold">{fmtMoney(valorMensal(student))}</p>
+        <p className="text-xs text-muted font-semibold uppercase tracking-wider mb-1">Plano</p>
+        <p className="text-primary font-semibold">{periodicidadeLabel(student.periodicidade)} · {fmtMoney(valorCobrado(student))}</p>
         <p className="text-xs text-muted mt-0.5">
-          {student.preco_personalizado != null
-            ? `Valor combinado · plano ${student.plan?.name ?? '—'} custa ${fmtMoney(student.plan?.price ?? 0)}`
-            : `Preço do plano ${student.plan?.name ?? '—'}`}
+          {(() => { const m = PERIODICIDADES.find(p => p.value === student.periodicidade)?.meses ?? 1; return `Cobrado a cada ${m} ${m === 1 ? 'mês' : 'meses'}` })()}
         </p>
       </div>
 
@@ -240,30 +233,31 @@ function InfoTab({ student }) {
                 placeholder="(11) 99999-9999"
               />
             </div>
-            <div><Label>Email</Label><Input type="email" value={form.email} onChange={e => setForm(f=>({...f,email:e.target.value}))} /></div>
             <div><Label>Nascimento</Label><Input type="date" value={form.birthday} onChange={e => setForm(f=>({...f,birthday:e.target.value}))} /></div>
             <div>
               <Label>Plano</Label>
-              <Select value={form.plan_id} onValueChange={v => setForm(f=>({...f,plan_id:v}))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {plans.map(p => <SelectItem key={p.id} value={p.id}>{p.name} — {fmtMoney(p.price)}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-1.5 flex-wrap">
+                {PERIODICIDADES.map(p => (
+                  <button type="button" key={p.value} onClick={() => setForm(fm=>({...fm,periodicidade:p.value}))}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold border transition-all ${form.periodicidade === p.value ? 'bg-accent text-white border-accent' : 'bg-raised border-border text-muted'}`}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted mt-1">
+                Mudar o plano recalcula o próximo vencimento a partir do último pagamento.
+              </p>
             </div>
             <div>
-              <Label>Valor personalizado (R$)</Label>
+              <Label>Valor (R$)</Label>
               <Input
                 type="number"
                 step="0.01"
+                min="0"
                 inputMode="decimal"
-                value={form.preco_personalizado}
-                onChange={e => setForm(f=>({...f, preco_personalizado: e.target.value}))}
-                placeholder="Vazio = preço do plano"
+                value={form.valor}
+                onChange={e => setForm(f=>({...f, valor: e.target.value}))}
               />
-              <p className="text-xs text-muted mt-1">
-                Só preencha se este aluno paga diferente do plano. Reajuste no plano não mexe em quem tem valor próprio.
-              </p>
             </div>
             <div><Label>Último pagamento</Label><Input type="date" value={form.ultimo_pagamento} onChange={e => setForm(f=>({...f,ultimo_pagamento:e.target.value}))} /></div>
             <div><Label>Última avaliação</Label><Input type="date" value={form.ultima_avaliacao} onChange={e => setForm(f=>({...f,ultima_avaliacao:e.target.value}))} /></div>
@@ -579,7 +573,7 @@ function PagamentosTab({ student }) {
             disabled={pagarMutation.isPending}
             onClick={() => pagarMutation.mutate()}
           >
-            {pagarMutation.isPending ? 'Confirmando...' : `Confirmar mensalidade · ${fmtMoney(valorMensal(student))}`}
+            {pagarMutation.isPending ? 'Confirmando...' : `Confirmar pagamento · ${fmtMoney(valorCobrado(student))}`}
           </Button>
           <WhatsAppButton
             phone={student.phone}
@@ -588,9 +582,10 @@ function PagamentosTab({ student }) {
             title={isOverdue ? 'Cobrar no WhatsApp' : 'Lembrar no WhatsApp'}
             message={msgMensalidade({
               name: student.name,
-              amount: valorMensal(student),
+              amount: valorCobrado(student),
               due_date: pp,
               vencida: isOverdue,
+              periodicidade: student.periodicidade,
             })}
           />
         </div>
@@ -623,7 +618,7 @@ function PagamentosTab({ student }) {
         open={addOpen}
         onClose={() => setAddOpen(false)}
         studentId={student.id}
-        planPrice={valorMensal(student)}
+        planPrice={valorCobrado(student)}
       />
     </div>
   )

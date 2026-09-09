@@ -39,7 +39,6 @@ async def ensure_indexes():
     )
     await db.payments.create_index("status")
     await db.payments.create_index([("student_id", 1), ("due_date", -1)])
-    await db.plans.create_index("active")
     await db.financial_transactions.create_index([("date", -1)])
 
 

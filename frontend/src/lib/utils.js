@@ -44,10 +44,22 @@ export function todayStr() {
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`
 }
 
-/** Quanto este aluno paga por mês: o valor combinado com ele, ou o do plano. */
-export function valorMensal(student) {
-  if (student?.preco_personalizado != null) return student.preco_personalizado
-  return student?.plan?.price ?? 0
+/* ── Periodicidade ─────────────────────────────────────────────────── */
+
+export const PERIODICIDADES = [
+  { value: 'mensal',     label: 'Mensal',     meses: 1  },
+  { value: 'trimestral', label: 'Trimestral', meses: 3  },
+  { value: 'semestral',  label: 'Semestral',  meses: 6  },
+  { value: 'anual',      label: 'Anual',      meses: 12 },
+]
+
+export function periodicidadeLabel(value) {
+  return PERIODICIDADES.find(p => p.value === value)?.label ?? 'Mensal'
+}
+
+/** Quanto este aluno paga por período (mês, trimestre, semestre ou ano). */
+export function valorCobrado(student) {
+  return student?.valor ?? 0
 }
 
 /* ── Telefone ──────────────────────────────────────────────────────────

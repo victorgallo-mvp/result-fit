@@ -63,18 +63,10 @@ async def get_today_list() -> list:
     }).to_list(length=500)
     marked_set = {str(a["student_id"]) for a in attendances}
 
-    plans_ids = list({s["plan_id"] for s in students if s.get("plan_id")})
-    plans = {}
-    if plans_ids:
-        async for p in db.plans.find({"_id": {"$in": plans_ids}}):
-            plans[p["_id"]] = p
-
     result = []
     for s in students:
         doc = serialize_doc(s)
         doc["marked"] = str(s["_id"]) in marked_set
-        plan = plans.get(s.get("plan_id"))
-        doc["plan"] = serialize_doc(plan) if plan else None
 
         if s.get("birthday"):
             b = s["birthday"]

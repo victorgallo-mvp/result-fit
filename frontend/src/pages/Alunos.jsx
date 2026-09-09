@@ -2,15 +2,13 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { studentsApi } from '@/api/students'
-import { plansApi } from '@/api/plans'
-import { avatarColor, fmtDate, fmtMoney, maskPhone, isValidPhone, phoneDigits } from '@/lib/utils'
+import { avatarColor, fmtDate, fmtMoney, maskPhone, isValidPhone, phoneDigits, PERIODICIDADES, periodicidadeLabel } from '@/lib/utils'
 import { WhatsAppButton } from '@/components/WhatsAppButton'
 import { msgMensalidade } from '@/lib/whatsapp'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Search, Plus, ChevronRight, Users, CheckCircle, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -125,7 +123,7 @@ function StudentCard({ student: s, onClick, onConfirm, confirming }) {
         <div className="flex-1 min-w-0">
           <p className="font-bold text-primary truncate">{s.name}</p>
           <p className="text-xs text-muted mt-0.5 truncate">
-            {s.plan?.name ?? 'Sem plano'} · {s.weekly_frequency ?? 3}x/sem
+            {periodicidadeLabel(s.periodicidade)} · {s.weekly_frequency ?? 3}x/sem
           </p>
           {np && (
             <p className={`text-xs font-semibold mt-0.5 ${isOverdue ? 'text-danger' : isPending ? 'text-warning' : 'text-muted'}`}>
@@ -147,6 +145,7 @@ function StudentCard({ student: s, onClick, onConfirm, confirming }) {
             amount: np.amount,
             due_date: np.due_date,
             vencida: isOverdue,
+            periodicidade: s.periodicidade,
           })}
         />
       )}
@@ -175,13 +174,11 @@ function StudentCard({ student: s, onClick, onConfirm, confirming }) {
 function CreateStudentDialog({ open, onClose }) {
   const qc = useQueryClient()
   const EMPTY = {
-    name: '', phone: '', email: '', birthday: '',
-    weekly_frequency: 3, plan_id: '', preco_personalizado: '', notes: '',
+    name: '', phone: '', birthday: '',
+    weekly_frequency: 3, periodicidade: 'mensal', valor: '', notes: '',
     ultimo_pagamento: '', ultima_avaliacao: '', avaliacao_frequencia: 3,
   }
   const [form, setForm] = useState(EMPTY)
-
-  const { data: plans = [] } = useQuery({ queryKey: ['plans'], queryFn: plansApi.list })
 
   const mutation = useMutation({
     mutationFn: (data) => studentsApi.create(data),
@@ -196,8 +193,8 @@ function CreateStudentDialog({ open, onClose }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (!form.name || !form.phone || !form.plan_id) {
-      return toast.error('Preencha nome, telefone e plano')
+    if (!form.name || !form.phone || !form.valor) {
+      return toast.error('Preencha nome, telefone e valor')
     }
     // telefone quebrado aqui vira botão de WhatsApp morto depois
     if (!isValidPhone(form.phone)) {
@@ -206,8 +203,7 @@ function CreateStudentDialog({ open, onClose }) {
     mutation.mutate({
       ...form,
       phone: phoneDigits(form.phone),
-      preco_personalizado: form.preco_personalizado === '' ? null : Number(form.preco_personalizado),
-      email: form.email || null,
+      valor: Number(form.valor),
       birthday: form.birthday || null,
       ultimo_pagamento: form.ultimo_pagamento || null,
       ultima_avaliacao: form.ultima_avaliacao || null,
@@ -235,34 +231,38 @@ function CreateStudentDialog({ open, onClose }) {
             />
           </div>
           <div>
-            <Label>Email</Label>
-            <Input type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} />
-          </div>
-          <div>
             <Label>Nascimento</Label>
             <Input type="date" value={form.birthday} onChange={e => setForm(f => ({...f, birthday: e.target.value}))} />
           </div>
           <div>
             <Label>Plano *</Label>
-            <Select value={form.plan_id} onValueChange={v => setForm(f => ({...f, plan_id: v}))}>
-              <SelectTrigger><SelectValue placeholder="Selecione o plano" /></SelectTrigger>
-              <SelectContent>
-                {plans.map(p => <SelectItem key={p.id} value={p.id}>{p.name} — {fmtMoney(p.price)}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-1.5 flex-wrap">
+              {PERIODICIDADES.map(p => (
+                <button
+                  type="button"
+                  key={p.value}
+                  onClick={() => setForm(fm => ({...fm, periodicidade: p.value}))}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold border transition-all ${form.periodicidade === p.value ? 'bg-accent text-white border-accent' : 'bg-raised border-border text-muted hover:text-primary'}`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
           </div>
           <div>
-            <Label>Valor personalizado (R$)</Label>
+            <Label>Valor (R$) *</Label>
             <Input
               type="number"
               step="0.01"
+              min="0"
               inputMode="decimal"
-              value={form.preco_personalizado}
-              onChange={e => setForm(f => ({...f, preco_personalizado: e.target.value}))}
-              placeholder="Vazio = preço do plano"
+              value={form.valor}
+              onChange={e => setForm(f => ({...f, valor: e.target.value}))}
+              placeholder={`Valor por ${periodicidadeLabel(form.periodicidade).toLowerCase() === 'mensal' ? 'mês' : 'período'}`}
+              required
             />
             <p className="text-xs text-muted mt-1">
-              Para aluno antigo que paga diferente do plano atual.
+              Cobrado a cada {PERIODICIDADES.find(p => p.value === form.periodicidade)?.meses ?? 1} {(PERIODICIDADES.find(p => p.value === form.periodicidade)?.meses ?? 1) === 1 ? 'mês' : 'meses'}.
             </p>
           </div>
           <div>

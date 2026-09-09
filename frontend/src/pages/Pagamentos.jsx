@@ -218,8 +218,7 @@ function AddPaymentDialog({ open, onClose }) {
             <Label>Aluno *</Label>
             <Select value={form.student_id} onValueChange={v => {
               const s = students.find(x => x.id === v)
-              // valor combinado com o aluno vence o preço do plano
-              setForm(f => ({ ...f, student_id: v, amount: s?.preco_personalizado ?? s?.plan?.price ?? f.amount }))
+              setForm(f => ({ ...f, student_id: v, amount: s?.valor ?? f.amount }))
             }}>
               <SelectTrigger><SelectValue placeholder="Selecionar aluno" /></SelectTrigger>
               <SelectContent>
