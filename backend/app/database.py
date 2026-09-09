@@ -40,6 +40,14 @@ async def ensure_indexes():
     await db.payments.create_index("status")
     await db.payments.create_index([("student_id", 1), ("due_date", -1)])
     await db.financial_transactions.create_index([("date", -1)])
+    # uma transação por recorrência por mês — é o que torna a geração idempotente
+    await db.financial_transactions.create_index(
+        [("recurring_id", 1), ("period", 1)],
+        unique=True,
+        partialFilterExpression={"recurring_id": {"$exists": True}},
+    )
+    await db.financial_transactions.create_index("installment_group_id")
+    await db.recurring_transactions.create_index("active")
 
 
 def get_db():

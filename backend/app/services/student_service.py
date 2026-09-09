@@ -20,16 +20,16 @@ def proximo_vencimento(ultimo: date, student: dict) -> date:
     return add_months(ultimo, meses_periodo(student))
 
 
-def add_one_month(d: date) -> date:
-    m = d.month % 12 + 1
-    y = d.year if m > 1 else d.year + 1
+def add_months(d: date, n: int) -> date:
+    """Soma n meses preservando o dia; clampa só no mês final (31/01 + 3 = 30/04)."""
+    total = d.year * 12 + (d.month - 1) + n
+    y, m = divmod(total, 12)
+    m += 1
     return date(y, m, min(d.day, calendar.monthrange(y, m)[1]))
 
 
-def add_months(d: date, n: int) -> date:
-    for _ in range(n):
-        d = add_one_month(d)
-    return d
+def add_one_month(d: date) -> date:
+    return add_months(d, 1)
 
 
 async def list_students(status_filter: str | None, search: str | None) -> list:
