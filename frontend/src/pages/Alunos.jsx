@@ -193,8 +193,12 @@ function CreateStudentDialog({ open, onClose }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (!form.name || !form.phone || !form.valor) {
+    // valor 0 é permitido (aluno cortesia); só não pode ficar em branco
+    if (!form.name || !form.phone || form.valor === '') {
       return toast.error('Preencha nome, telefone e valor')
+    }
+    if (Number(form.valor) < 0) {
+      return toast.error('O valor não pode ser negativo')
     }
     // telefone quebrado aqui vira botão de WhatsApp morto depois
     if (!isValidPhone(form.phone)) {

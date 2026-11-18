@@ -22,8 +22,9 @@ export default function FrequenciaMes() {
   })
 
   const students = [...raw].sort((a, b) => {
-    const ra = a.expected > 0 ? a.attended / a.expected : 0
-    const rb = b.expected > 0 ? b.attended / b.expected : 0
+    // percentual pelo ritmo até hoje; o total do mês (expected) é só o que aparece em "2/12"
+    const ra = a.expected_so_far > 0 ? a.attended / a.expected_so_far : 0
+    const rb = b.expected_so_far > 0 ? b.attended / b.expected_so_far : 0
     return rb - ra
   })
 
@@ -67,7 +68,7 @@ export default function FrequenciaMes() {
             <p className="p-6 text-center text-sm text-muted">Nenhum aluno ativo</p>
           )}
           {students.map((s, i) => {
-            const rate = s.expected > 0 ? Math.round(s.attended / s.expected * 100) : 0
+            const rate = s.expected_so_far > 0 ? Math.round(s.attended / s.expected_so_far * 100) : 0
             const rateColor = rate >= 80 ? 'text-accent' : rate >= 60 ? 'text-warning' : 'text-danger'
 
             return (

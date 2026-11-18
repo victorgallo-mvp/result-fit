@@ -50,7 +50,8 @@ async def list_students(status_filter: str | None, search: str | None) -> list:
     for s in students:
         doc = serialize_doc(s)
         pp = s.get("proximo_pagamento")
-        if pp:
+        # aluno com valor 0 (cortesia) não entra em cobrança
+        if pp and valor_cobrado(s) > 0:
             if pp < today_dt:
                 st = "overdue"
             elif pp <= in_3_dt:
@@ -79,8 +80,9 @@ async def get_student(student_id: str) -> dict:
 
 async def create_student(data: StudentCreate) -> dict:
     db = get_db()
-    if data.valor <= 0:
-        raise HTTPException(status_code=422, detail="Informe o valor cobrado")
+    # 0 é válido (aluno cortesia/bolsista); só negativo não faz sentido
+    if data.valor < 0:
+        raise HTTPException(status_code=422, detail="O valor não pode ser negativo")
 
     doc = {
         "name": data.name,
@@ -161,8 +163,8 @@ async def update_student(student_id: str, data: StudentUpdate) -> dict:
     updates = data.model_dump(exclude_none=True)
     if "birthday" in updates and updates["birthday"]:
         updates["birthday"] = datetime.combine(updates["birthday"], datetime.min.time())
-    if "valor" in updates and updates["valor"] <= 0:
-        raise HTTPException(status_code=422, detail="Informe o valor cobrado")
+    if "valor" in updates and updates["valor"] < 0:
+        raise HTTPException(status_code=422, detail="O valor não pode ser negativo")
 
     # periodicidade nova recalcula o vencimento a partir do último pagamento conhecido
     merged = {**student, **updates}

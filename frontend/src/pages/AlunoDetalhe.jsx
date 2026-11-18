@@ -138,7 +138,7 @@ function InfoTab({ student }) {
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!isValidPhone(form.phone)) return toast.error('Telefone incompleto — precisa de DDD + número')
-    if (!form.valor || Number(form.valor) <= 0) return toast.error('Informe o valor cobrado')
+    if (form.valor === '' || Number(form.valor) < 0) return toast.error('Informe o valor cobrado')
     mutation.mutate({
       ...form,
       phone: phoneDigits(form.phone),
@@ -462,7 +462,7 @@ function FrequenciaTab({ student }) {
           <div className="h-2 bg-border rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-500 ${stats.rate >= 80 ? 'bg-accent' : stats.rate >= 60 ? 'bg-warning' : 'bg-danger'}`}
-              style={{ width: `${stats.rate}%` }}
+              style={{ width: `${Math.min(stats.rate, 100)}%` }}
             />
           </div>
         </div>
@@ -552,7 +552,8 @@ function PagamentosTab({ student }) {
   const ppDate = pp ? new Date(pp) : null
   const isOverdue = ppDate && ppDate < today
   const isDueSoon = ppDate && ppDate >= today && ppDate <= new Date(today.getTime() + 3*86400000)
-  const showConfirm = isOverdue || isDueSoon
+  // aluno com valor 0 (cortesia) não entra em cobrança
+  const showConfirm = (isOverdue || isDueSoon) && valorCobrado(student) > 0
 
   return (
     <div className="pb-6 space-y-4">

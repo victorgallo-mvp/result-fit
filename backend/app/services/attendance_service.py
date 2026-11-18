@@ -5,6 +5,20 @@ from app.database import get_db
 from app.models.common import serialize_doc
 
 
+SEMANAS_POR_MES = 4
+
+
+def esperado_mes(weekly_frequency: int) -> int:
+    """Treinos esperados no mês inteiro: 4 semanas fixas (3x/sem → 12)."""
+    return weekly_frequency * SEMANAS_POR_MES
+
+
+def esperado_ate(weekly_frequency: int, dias_corridos: int) -> int:
+    """Treinos esperados até agora, pelo ritmo — nunca passa do total do mês.
+    É a base do percentual, pra ninguém ficar no vermelho no começo do mês."""
+    return min(round(dias_corridos / 7 * weekly_frequency), esperado_mes(weekly_frequency))
+
+
 async def mark_attendance(student_id: str, mark_date: date) -> dict:
     db = get_db()
     student = await db.students.find_one({"_id": ObjectId(student_id)})
@@ -93,7 +107,8 @@ async def get_attendance_stats(student_id: str, year: int, month: int) -> dict:
 
     days_in_period = (last_day - first_day).days + 1
     weekly_frequency = student.get("weekly_frequency", 3)
-    expected = round(days_in_period / 7 * weekly_frequency)
+    expected = esperado_mes(weekly_frequency)
+    expected_so_far = esperado_ate(weekly_frequency, days_in_period)
 
     start_dt = datetime.combine(first_day, datetime.min.time())
     end_dt = datetime.combine(last_day, datetime.min.time())
@@ -102,10 +117,17 @@ async def get_attendance_stats(student_id: str, year: int, month: int) -> dict:
         "date": {"$gte": start_dt, "$lte": end_dt},
     })
 
-    faltas = max(0, expected - attended)
-    rate = round(attended / expected * 100, 1) if expected > 0 else 0.0
+    # faltas e taxa seguem o ritmo até hoje; `expected` é o total do mês
+    faltas = max(0, expected_so_far - attended)
+    rate = round(attended / expected_so_far * 100, 1) if expected_so_far > 0 else 0.0
 
-    return {"expected": expected, "attended": attended, "faltas": faltas, "rate": rate}
+    return {
+        "expected": expected,
+        "expected_so_far": expected_so_far,
+        "attended": attended,
+        "faltas": faltas,
+        "rate": rate,
+    }
 
 
 async def get_month_attendance_list(year: int, month: int) -> list:
@@ -145,7 +167,8 @@ async def get_month_attendance_list(year: int, month: int) -> list:
     result = []
     for s in students:
         weekly_frequency = s.get("weekly_frequency", 3)
-        expected = round(days_in_period / 7 * weekly_frequency)
+        expected = esperado_mes(weekly_frequency)
+        expected_so_far = esperado_ate(weekly_frequency, days_in_period)
         attended_set = att_map.get(s["_id"], set())
         attended = len(attended_set)
         result.append({
@@ -154,6 +177,7 @@ async def get_month_attendance_list(year: int, month: int) -> list:
             "weekly_frequency": weekly_frequency,
             "attended": attended,
             "expected": expected,
+            "expected_so_far": expected_so_far,
         })
     return result
 

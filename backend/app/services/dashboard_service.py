@@ -2,6 +2,7 @@ from datetime import datetime, date, timedelta
 from app.database import get_db
 from app.models.common import serialize_doc
 from app.services.student_service import valor_cobrado
+from app.services.attendance_service import esperado_ate
 
 
 async def get_dashboard() -> dict:
@@ -41,7 +42,7 @@ async def get_dashboard() -> dict:
     first_day = date(today.year, today.month, 1)
     days_so_far = (today - first_day).days + 1
     total_expected = sum(
-        round(days_so_far / 7 * s.get("weekly_frequency", 3))
+        esperado_ate(s.get("weekly_frequency", 3), days_so_far)
         for s in students
     )
     taxa = round(attended_count / total_expected * 100, 1) if total_expected > 0 else 0.0
@@ -58,12 +59,15 @@ async def get_dashboard() -> dict:
             "periodicidade": s.get("periodicidade", "mensal"),
         }
 
+    # aluno com valor 0 (cortesia) não entra em cobrança
+    cobraveis = [s for s in students if valor_cobrado(s) > 0]
+
     vencidas = sorted(
-        [s for s in students if s.get("proximo_pagamento") and s["proximo_pagamento"] < today_dt],
+        [s for s in cobraveis if s.get("proximo_pagamento") and s["proximo_pagamento"] < today_dt],
         key=lambda s: s["proximo_pagamento"],
     )
     vencendo = sorted(
-        [s for s in students if s.get("proximo_pagamento") and today_dt <= s["proximo_pagamento"] <= in_3_dt],
+        [s for s in cobraveis if s.get("proximo_pagamento") and today_dt <= s["proximo_pagamento"] <= in_3_dt],
         key=lambda s: s["proximo_pagamento"],
     )
 
