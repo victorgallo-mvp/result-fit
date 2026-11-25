@@ -11,7 +11,6 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { useState, useRef, useCallback } from 'react'
 
-const TODAY = todayStr()
 
 export default function Hoje() {
   const { user } = useAuth()
@@ -20,14 +19,19 @@ export default function Hoje() {
   const [filterLetter, setFilterLetter] = useState(null)
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['today'],
-    queryFn: attendancesApi.today,
+    // dia calculado na hora: o app instalado fica aberto de um dia pro outro
+    queryFn: () => attendancesApi.today(todayStr()),
     staleTime: 30_000,
   })
 
   const toggleMutation = useMutation({
+    // sem isto, o celular sem sinal deixa a marcação "em espera" calada: o aluno
+    // aparece marcado, nada chega no servidor e a presença some ao reabrir o app
+    networkMode: 'always',
     mutationFn: async ({ id, marked }) => {
-      if (marked) await attendancesApi.unmark(id, TODAY)
-      else await attendancesApi.mark(id, TODAY)
+      const day = todayStr()
+      if (marked) await attendancesApi.unmark(id, day)
+      else await attendancesApi.mark(id, day)
     },
     onMutate: async ({ id, marked }) => {
       await qc.cancelQueries({ queryKey: ['today'] })
@@ -37,9 +41,11 @@ export default function Hoje() {
       )
       return { prev }
     },
-    onError: (_, __, ctx) => {
+    onError: (err, __, ctx) => {
       qc.setQueryData(['today'], ctx.prev)
-      toast.error('Erro ao registrar presença')
+      toast.error(err?.response
+        ? 'Erro ao registrar presença'
+        : 'Sem conexão — a presença não foi registrada. Tente de novo.')
     },
   })
 

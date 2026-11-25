@@ -58,9 +58,11 @@ async def unmark_attendance(student_id: str, mark_date: date):
         raise HTTPException(status_code=404, detail="Presença não encontrada")
 
 
-async def get_today_list() -> list:
+async def get_today_list(day: date | None = None) -> list:
     db = get_db()
-    today = date.today()
+    # o servidor roda em UTC: depois das 21h de Brasília o "hoje" dele já é amanhã,
+    # e a presença marcada à noite sumia da lista. Por isso vale o dia do aparelho.
+    today = day or date.today()
     today_dt = datetime.combine(today, datetime.min.time())
 
     students = await db.students.find({

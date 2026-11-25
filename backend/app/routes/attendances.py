@@ -1,3 +1,5 @@
+from datetime import date
+from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from app.auth.dependencies import get_current_user
 from app.models.attendance import AttendanceMark, AttendanceDelete
@@ -22,8 +24,8 @@ async def unmark(data: AttendanceDelete):
 
 
 @router.get("/today")
-async def today():
-    return await attendance_service.get_today_list()
+async def today(day: Optional[date] = Query(None, description="Dia local do aparelho, YYYY-MM-DD")):
+    return await attendance_service.get_today_list(day)
 
 
 @router.get("/month")
